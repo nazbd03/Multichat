@@ -156,14 +156,69 @@ function downloadFile(url, destPath, onProgress) {
   });
 }
 
-function applyInPlaceUpdate(downloadedExePath, targetExePath) {
+function applyInPlaceUpdate(downloadedExePath, targetExePath, currentPid = process.pid) {
   const batPath = path.join(os.tmpdir(), `multichat_updater_${Date.now()}.bat`);
+  const logPath = path.join(os.tmpdir(), `multichat_updater.log`);
+
   const batContent = `@echo off
 chcp 65001 >nul
+set "SRC=${downloadedExePath}"
+set "DEST=${targetExePath}"
+set "PID=${currentPid}"
+set "LOG=${logPath}"
+
+echo [%DATE% %TIME%] === Iniciando actualizador in-place === > "%LOG%"
+echo [%DATE% %TIME%] PID a esperar: %PID% >> "%LOG%"
+echo [%DATE% %TIME%] Origen: %SRC% >> "%LOG%"
+echo [%DATE% %TIME%] Destino: %DEST% >> "%LOG%"
+
+:: 1. Esperar a que el proceso anterior cierre completamente
+if not "%PID%"=="" (
+  echo [%DATE% %TIME%] Esperando que el proceso anterior (%PID%) termine... >> "%LOG%"
+  :wait_pid
+  tasklist /fi "PID eq %PID%" 2>nul | find "%PID%" >nul
+  if not errorlevel 1 (
+    timeout /t 1 /nobreak >nul
+    goto wait_pid
+  )
+)
+
+:: 2. Pausa adicional para liberacion de locks en Windows
 timeout /t 2 /nobreak >nul
-copy /y "${downloadedExePath}" "${targetExePath}" >nul
-if exist "${downloadedExePath}" del /f /q "${downloadedExePath}" >nul
-start "" "${targetExePath}"
+
+:: 3. Reintentar reemplazo hasta 45 veces (1 seg cada intento)
+set /a ATTEMPTS=0
+:try_copy
+set /a ATTEMPTS+=1
+echo [%DATE% %TIME%] Intento de copia #%ATTEMPTS% >> "%LOG%"
+copy /y "%SRC%" "%DEST%" >nul 2>&1
+if not errorlevel 1 goto copy_success
+
+if %ATTEMPTS% geq 45 goto force_replace
+timeout /t 1 /nobreak >nul
+goto try_copy
+
+:force_replace
+echo [%DATE% %TIME%] Intento de reemplazo forzado mediante renombramiento previo >> "%LOG%"
+if exist "%DEST%.old" del /f /q "%DEST%.old" >nul 2>&1
+move /y "%DEST%" "%DEST%.old" >nul 2>&1
+copy /y "%SRC%" "%DEST%" >nul 2>&1
+if not errorlevel 1 goto copy_success
+
+echo [%DATE% %TIME%] ERROR: No se pudo reemplazar el archivo tras 45 intentos >> "%LOG%"
+goto cleanup
+
+:copy_success
+echo [%DATE% %TIME%] Archivo reemplazado exitosamente! >> "%LOG%"
+if exist "%SRC%" del /f /q "%SRC%" >nul 2>&1
+if exist "%DEST%.old" del /f /q "%DEST%.old" >nul 2>&1
+
+:: 4. Iniciar la aplicacion actualizada
+echo [%DATE% %TIME%] Iniciando nueva version: %DEST% >> "%LOG%"
+start "" "%DEST%"
+
+:cleanup
+timeout /t 3 /nobreak >nul
 (goto) 2>nul & del "%~f0"
 `;
 

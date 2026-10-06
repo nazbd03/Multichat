@@ -48,7 +48,13 @@ app.get('/api/updates/check', async (req, res) => {
   res.json(result);
 });
 
+let isUpdating = false;
+
 app.post('/api/updates/download-and-apply', async (req, res) => {
+  if (isUpdating) {
+    return res.status(409).json({ ok: false, error: 'Ya hay una descarga de actualización en curso.' });
+  }
+
   try {
     const update = await checkForUpdates();
     if (!update.updateAvailable || !update.downloadUrl) {
@@ -59,20 +65,58 @@ app.post('/api/updates/download-and-apply', async (req, res) => {
       return res.json({ ok: false, requiresManualDownload: true, url: update.htmlUrl });
     }
 
+    let targetExe = process.env.PORTABLE_EXECUTABLE_FILE;
+    if (!targetExe || !fs.existsSync(targetExe)) {
+      const candidates = [
+        path.join(__dirname, '..', 'Multistream.Chat.exe'),
+        path.join(__dirname, '..', 'Multistream Chat.exe'),
+        path.join(__dirname, '..', 'Multichat Overlay.exe'),
+        path.join(process.cwd(), 'Multistream.Chat.exe'),
+        path.join(process.cwd(), 'Multistream Chat.exe')
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          targetExe = cand;
+          break;
+        }
+      }
+    }
+
+    // If still not found and in development mode, offer direct manual download
+    if (!targetExe || !fs.existsSync(targetExe)) {
+      return res.json({
+        ok: false,
+        requiresManualDownload: true,
+        url: update.downloadUrl,
+        message: 'No se detectó un archivo ejecutable portable en ejecución. Descarga directa disponible.'
+      });
+    }
+
+    isUpdating = true;
+    io.emit('update-progress', { status: 'downloading', percent: 0 });
+
     const tempExe = path.join(os.tmpdir(), `multichat_update_${Date.now()}.exe`);
-    await downloadFile(update.downloadUrl, tempExe);
 
-    const targetExe = process.env.PORTABLE_EXECUTABLE_FILE
-      || (require('fs').existsSync(path.join(__dirname, '..', 'Multistream Chat.exe')) ? path.join(__dirname, '..', 'Multistream Chat.exe') : process.execPath);
+    let lastSentPercent = -1;
+    await downloadFile(update.downloadUrl, tempExe, (percent) => {
+      if (percent !== lastSentPercent) {
+        lastSentPercent = percent;
+        io.emit('update-progress', { status: 'downloading', percent });
+      }
+    });
 
-    applyInPlaceUpdate(tempExe, targetExe);
+    io.emit('update-progress', { status: 'applying', percent: 100 });
 
-    res.json({ ok: true, message: 'Actualización descargada. Reiniciando la app en 2 segundos...' });
+    applyInPlaceUpdate(tempExe, targetExe, process.pid);
+
+    res.json({ ok: true, message: 'Actualización descargada al 100%. Reiniciando en breves segundos...' });
 
     setTimeout(() => {
       appEvents.emit('quit-app');
-    }, 1500);
+    }, 2000);
   } catch (err) {
+    isUpdating = false;
+    io.emit('update-progress', { status: 'error', error: err.message });
     res.status(500).json({ ok: false, error: err.message });
   }
 });

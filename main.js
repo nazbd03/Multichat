@@ -91,7 +91,7 @@ async function promptUpdateCheck(isManual = false) {
             try {
               await downloadFile(updateInfo.downloadUrl, tempExe);
               const targetExe = getTargetExePath();
-              applyInPlaceUpdate(tempExe, targetExe);
+              applyInPlaceUpdate(tempExe, targetExe, process.pid);
               app.isQuitting = true;
               app.quit();
             } catch (err) {

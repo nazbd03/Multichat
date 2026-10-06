@@ -879,6 +879,7 @@
   const updateTitle = document.getElementById('update-title');
   const updateDesc = document.getElementById('update-desc');
   const btnDownloadUpdate = document.getElementById('btn-download-update');
+  const btnDirectDownload = document.getElementById('btn-direct-download');
   const btnDismissUpdate = document.getElementById('btn-dismiss-update');
 
   if (btnDismissUpdate) {
@@ -886,6 +887,23 @@
       if (updateBanner) updateBanner.style.display = 'none';
     });
   }
+
+  // Socket listener for live progress
+  socket.on('update-progress', (data) => {
+    if (!btnDownloadUpdate) return;
+    if (data.status === 'downloading') {
+      const p = data.percent || 0;
+      btnDownloadUpdate.textContent = `⏳ Descargando: ${p}%...`;
+      btnDownloadUpdate.style.pointerEvents = 'none';
+    } else if (data.status === 'applying') {
+      btnDownloadUpdate.textContent = '🚀 Reiniciando aplicación...';
+      showToast('Descarga completada al 100%. Aplicando actualización y reiniciando...');
+    } else if (data.status === 'error') {
+      btnDownloadUpdate.textContent = 'Actualizar y Reiniciar';
+      btnDownloadUpdate.style.pointerEvents = 'auto';
+      showToast('Error en actualización: ' + (data.error || 'Fallo desconocido'));
+    }
+  });
 
   let latestUpdateData = null;
 
@@ -899,9 +917,9 @@
         return;
       }
 
-      btnDownloadUpdate.textContent = '⏳ Descargando actualización...';
+      btnDownloadUpdate.textContent = '⏳ Conectando...';
       btnDownloadUpdate.style.pointerEvents = 'none';
-      showToast('Descargando actualización... La app se reiniciará sola.');
+      showToast('Iniciando descarga... La app se reiniciará automáticamente al terminar.');
 
       try {
         const res = await fetch('/api/updates/download-and-apply', { method: 'POST' });
@@ -919,7 +937,7 @@
           btnDownloadUpdate.style.pointerEvents = 'auto';
         }
       } catch (err) {
-        showToast('Error de conexión al descargar');
+        showToast('Error de conexión con el actualizador');
         btnDownloadUpdate.textContent = 'Actualizar y Reiniciar';
         btnDownloadUpdate.style.pointerEvents = 'auto';
       }
@@ -940,6 +958,10 @@
           if (btnDownloadUpdate) {
             btnDownloadUpdate.textContent = data.hasExeAsset ? 'Actualizar y Reiniciar' : 'Ver en GitHub';
             btnDownloadUpdate.style.pointerEvents = 'auto';
+          }
+          if (btnDirectDownload && data.downloadUrl) {
+            btnDirectDownload.href = data.downloadUrl;
+            btnDirectDownload.style.display = 'inline-block';
           }
           updateBanner.style.display = 'block';
         }
