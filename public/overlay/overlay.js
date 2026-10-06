@@ -15,6 +15,7 @@
     maxMessages: 15,
     autoHideDelay: 15,
     animation: 'slide-left',
+    exitAnimation: 'fade-out',
     cardOpacity: 85,
     borderRadius: 12,
     showPlatformBadge: true,
@@ -523,14 +524,24 @@
     const delay = parseInt(currentConfig.autoHideDelay, 10);
     if (!isNaN(delay) && delay > 0) {
       setTimeout(() => {
-        card.classList.add('fade-out');
-        setTimeout(() => {
-          if (card.parentNode) card.parentNode.removeChild(card);
-        }, 500);
+        removeMessageWithExitAnim(card);
       }, delay * 1000);
     }
 
     return card;
+  }
+
+  function removeMessageWithExitAnim(element) {
+    if (!element || element.dataset.exiting) return;
+    element.dataset.exiting = 'true';
+    const exitAnim = currentConfig.exitAnimation || 'fade-out';
+    element.classList.add(`exit-${exitAnim}`);
+    element.classList.add('fade-out');
+    setTimeout(() => {
+      if (element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    }, 460);
   }
 
   function createMonogram(name, color) {
@@ -583,13 +594,16 @@
       chatContainer.appendChild(element);
     }
 
-    // Prune excessive messages
+    // Prune excessive messages with exit animation
     const max = currentConfig.maxMessages || 15;
-    while (chatContainer.children.length > max) {
-      if (currentConfig.messageDirection === 'top-down') {
-        chatContainer.removeChild(chatContainer.lastChild);
+    const getActiveMessages = () => Array.from(chatContainer.children).filter(el => !el.dataset.exiting);
+    while (getActiveMessages().length > max) {
+      const active = getActiveMessages();
+      const toRemove = currentConfig.messageDirection === 'top-down' ? active[active.length - 1] : active[0];
+      if (toRemove) {
+        removeMessageWithExitAnim(toRemove);
       } else {
-        chatContainer.removeChild(chatContainer.firstChild);
+        break;
       }
     }
 

@@ -65,6 +65,7 @@ const DEFAULT_CONFIG = {
     maxMessages: 15,
     autoHideDelay: 15, // seconds (0 to disable)
     animation: 'slide-left', // slide-left, slide-up, pop-in, fade
+    exitAnimation: 'fade-out', // fade-out, slide-right, slide-left, slide-up, slide-down, pop-out
     cardOpacity: 85, // percentage
     borderRadius: 12,
     showPlatformBadge: true,

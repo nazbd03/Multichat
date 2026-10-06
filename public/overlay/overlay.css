@@ -346,6 +346,168 @@ html, body {
 }
 
 /* =========================================
+   EXIT ANIMATIONS (Animaciones de Salida)
+   ========================================= */
+.chat-message[data-exiting="true"] {
+  pointer-events: none !important;
+}
+
+/* 1. Fade Out (Desvanecer) */
+.chat-message.exit-fade-out,
+.chat-message.fade-out {
+  animation: exitFadeOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 250px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 2. Slide Out Right (Deslizar hacia la derecha) */
+.chat-message.exit-slide-right {
+  animation: exitSlideRight 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitSlideRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 250px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(90px);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 3. Slide Out Left (Deslizar hacia la izquierda) */
+.chat-message.exit-slide-left {
+  animation: exitSlideLeft 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitSlideLeft {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 250px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-90px);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 4. Slide Out Up (Deslizar hacia arriba) */
+.chat-message.exit-slide-up {
+  animation: exitSlideUp 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitSlideUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 250px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-55px);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 5. Slide Out Down (Deslizar hacia abajo) */
+.chat-message.exit-slide-down {
+  animation: exitSlideDown 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitSlideDown {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 250px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(55px);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 6. Pop Out / Zoom Out (Encoger) */
+.chat-message.exit-pop-out {
+  animation: exitPopOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+}
+@keyframes exitPopOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    max-height: 250px;
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.15);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* =========================================
    THEMES
    ========================================= */
 

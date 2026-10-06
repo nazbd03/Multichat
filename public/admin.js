@@ -46,6 +46,7 @@
   const settingBorderRadius = document.getElementById('setting-border-radius');
   const valBorderRadius = document.getElementById('val-border-radius');
   const settingAnimation = document.getElementById('setting-animation');
+  const settingExitAnimation = document.getElementById('setting-exit-animation');
   const settingAutohide = document.getElementById('setting-autohide');
   const settingMaxMessages = document.getElementById('setting-max-messages');
   const valMaxMessages = document.getElementById('val-max-messages');
@@ -241,7 +242,7 @@
 
   // Selects & Checkboxes live change
   [
-    settingTheme, settingFont, settingAnimation, settingAutohide,
+    settingTheme, settingFont, settingAnimation, settingExitAnimation, settingAutohide,
     settingDirection, settingShowPlatformBadge, settingShowAvatar,
     settingShowUserBadges, settingShowTimestamp, settingSoundEnabled,
     settingTtsEnabled, settingTtsReadUsername, settingTtsTranslate, settingTtsLang,
@@ -636,6 +637,7 @@
       valBorderRadius.textContent = `${settingBorderRadius.value}px`;
 
       settingAnimation.value = o.animation || 'slide-left';
+      if (settingExitAnimation) settingExitAnimation.value = o.exitAnimation || 'fade-out';
       settingAutohide.value = o.autoHideDelay ?? 15;
       settingMaxMessages.value = o.maxMessages || 15;
       valMaxMessages.textContent = settingMaxMessages.value;
@@ -844,6 +846,7 @@
         cardOpacity: parseInt(settingCardOpacity.value, 10),
         borderRadius: parseInt(settingBorderRadius.value, 10),
         animation: settingAnimation.value,
+        exitAnimation: settingExitAnimation ? settingExitAnimation.value : 'fade-out',
         autoHideDelay: parseInt(settingAutohide.value, 10),
         maxMessages: parseInt(settingMaxMessages.value, 10),
         messageDirection: settingDirection.value,

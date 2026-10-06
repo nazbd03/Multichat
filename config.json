@@ -28,6 +28,7 @@
     "maxMessages": 15,
     "autoHideDelay": 15,
     "animation": "slide-left",
+    "exitAnimation": "fade-out",
     "cardOpacity": 85,
     "borderRadius": 12,
     "showPlatformBadge": true,
