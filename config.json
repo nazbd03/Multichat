@@ -1,66 +1,63 @@
 {
   "port": 3333,
-  "appTheme": "dark",
+  "appTheme": "midnight",
   "platforms": {
     "twitch": {
-      "enabled": true,
-      "channel": "EstebanMasters"
+      "enabled": false,
+      "channel": ""
     },
     "youtube": {
-      "enabled": true,
-      "query": "@EstebanMastersBD",
+      "enabled": false,
+      "query": "",
       "mode": "auto"
     },
     "kick": {
-      "enabled": true,
-      "channel": "estebanmasters"
+      "enabled": false,
+      "channel": ""
     },
     "tiktok": {
-      "enabled": true,
-      "username": "@estebanmastersbd"
+      "enabled": false,
+      "username": ""
     }
   },
   "overlay": {
-    "theme": "neon_red_cyan",
-    "fontFamily": "'Press Start 2P', monospace",
-    "fontSize": 12,
+    "theme": "glassmorphism",
+    "fontFamily": "'Inter', sans-serif",
+    "fontSize": 16,
     "messageDirection": "bottom-up",
     "maxMessages": 15,
     "autoHideDelay": 15,
     "animation": "slide-left",
-    "cardOpacity": 75,
+    "cardOpacity": 85,
     "borderRadius": 12,
     "showPlatformBadge": true,
     "showAvatar": true,
     "showUserBadges": true,
     "showTimestamp": false,
-    "soundEnabled": true,
+    "soundEnabled": false,
     "soundVolume": 50,
     "ttsEnabled": true,
-    "ttsVolume": 50,
+    "ttsVolume": 90,
     "ttsSpeed": 1,
-    "ttsLang": "goku_latino",
+    "ttsLang": "rick_sanchez_latino",
     "ttsReadUsername": true,
     "ttsTranslate": false,
     "ttsCommandOnly": false,
     "ttsCommand": "!tts",
     "ttsPermissions": "all",
-    "ttsAntiSpam": false,
-    "bannedWords": [
-      "maricon",
-      "marica"
-    ],
+    "ttsAntiSpam": true,
+    "bannedWords": [],
     "customThemeEnabled": false,
     "customBgColor": "#000000",
     "customTextColor": "#ffffff",
     "customBorderMulticolor": true,
-    "customBorderColor": "#8a0000",
-    "customBorderColor2": "#05cdff",
-    "customBorderAnim": "breathe_dual",
-    "customBorderStyle": "solid",
+    "customBorderColor": "#ff1244",
+    "customBorderColor2": "#00f0ff",
+    "customBorderAnim": "rotating",
+    "customBorderStyle": "neon",
     "customBorderSpeed": "normal",
-    "customBorderWidth": 3.5,
-    "textEffect": "neon_glow",
+    "customBorderWidth": 2.5,
+    "textEffect": "shadow",
     "avatarShape": "circle",
     "messageGap": "normal",
     "messageFlash": true,

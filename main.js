@@ -179,6 +179,18 @@ function updateTrayMenu() {
     },
     { type: 'separator' },
     {
+      label: '📁 Abrir Carpeta de Configuración (AppData)',
+      click: () => {
+        try {
+          const { getWritableConfigPath } = require('./src/config');
+          const cfgPath = getWritableConfigPath();
+          shell.showItemInFolder(cfgPath);
+        } catch (e) {
+          console.warn('[Tray] Error opening config folder:', e.message);
+        }
+      }
+    },
+    {
       label: '🔄 Buscar Actualizaciones',
       click: () => {
         promptUpdateCheck(true);

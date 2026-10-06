@@ -1,44 +1,52 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 function getWritableConfigPath() {
   try {
-    // 1. Portable exe directory (if run as portable)
-    if (process.env.PORTABLE_EXECUTABLE_DIR) {
-      const portablePath = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'config.json');
-      if (!fs.existsSync(portablePath)) {
+    let appDataDir = '';
+
+    // 1. Check Electron app userData (%APPDATA%\multichat on Windows)
+    try {
+      const electron = require('electron');
+      const app = electron.app || (electron.remote && electron.remote.app);
+      if (app && typeof app.getPath === 'function') {
+        appDataDir = app.getPath('userData');
+      }
+    } catch (e) {}
+
+    // 2. Direct environment fallback (%APPDATA% Roaming or %LOCALAPPDATA% Local)
+    if (!appDataDir) {
+      const base = process.env.APPDATA || process.env.LOCALAPPDATA || (process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Application Support') : path.join(os.homedir(), '.config'));
+      appDataDir = path.join(base, 'multichat');
+    }
+
+    if (!fs.existsSync(appDataDir)) {
+      fs.mkdirSync(appDataDir, { recursive: true });
+    }
+
+    const configPath = path.join(appDataDir, 'config.json');
+
+    // If config.json does not yet exist in AppData, seed it from bundled/clean config
+    if (!fs.existsSync(configPath)) {
+      const bundledConfig = path.join(__dirname, '..', 'config.json');
+      if (fs.existsSync(bundledConfig)) {
         try {
-          const bundledConfig = path.join(__dirname, '..', 'config.json');
-          if (fs.existsSync(bundledConfig)) {
-            fs.copyFileSync(bundledConfig, portablePath);
-          }
+          fs.copyFileSync(bundledConfig, configPath);
         } catch (e) {}
       }
-      return portablePath;
     }
 
-    // 2. Electron packaged app (save to userData so writes succeed)
-    const electron = require('electron');
-    const app = electron.app || (electron.remote && electron.remote.app);
-    if (app && app.isPackaged) {
-      const userConfig = path.join(app.getPath('userData'), 'config.json');
-      if (!fs.existsSync(userConfig)) {
-        const bundledConfig = path.join(__dirname, '..', 'config.json');
-        if (fs.existsSync(bundledConfig)) {
-          try {
-            fs.copyFileSync(bundledConfig, userConfig);
-          } catch (e) {}
-        }
-      }
-      return userConfig;
-    }
-  } catch (e) {}
-
-  // 3. Development / default path
-  return path.join(__dirname, '..', 'config.json');
+    return configPath;
+  } catch (err) {
+    console.error('Error resolving AppData config path:', err.message);
+    const fallbackDir = path.join(process.env.APPDATA || process.env.LOCALAPPDATA || os.tmpdir(), 'multichat');
+    try { fs.mkdirSync(fallbackDir, { recursive: true }); } catch (_) {}
+    return path.join(fallbackDir, 'config.json');
+  }
 }
 
-const CONFIG_PATH = getWritableConfigPath();
+const DEFAULT_FISH_KEY = 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE';
 
 const DEFAULT_CONFIG = {
   port: 3333,
@@ -68,7 +76,7 @@ const DEFAULT_CONFIG = {
     ttsEnabled: true,
     ttsVolume: 90,
     ttsSpeed: 1.0,
-    ttsLang: 'es',
+    ttsLang: 'rick_sanchez_latino',
     ttsReadUsername: true,
     ttsTranslate: false,
     ttsCommandOnly: false,
@@ -89,30 +97,33 @@ const DEFAULT_CONFIG = {
     textEffect: 'shadow',
     avatarShape: 'circle',
     messageGap: 'normal',
-    messageFlash: true
+    messageFlash: true,
+    fishApiKey: DEFAULT_FISH_KEY
   }
 };
 
 function loadConfig() {
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+    const configPath = getWritableConfigPath();
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, 'utf8');
       const parsed = JSON.parse(raw);
       return deepMerge(DEFAULT_CONFIG, parsed);
     }
   } catch (err) {
-    console.error('Error loading config.json, using defaults:', err.message);
+    console.error('Error loading config.json from AppData, using defaults:', err.message);
   }
   return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 }
 
 function saveConfig(newConfig) {
   try {
+    const configPath = getWritableConfigPath();
     const merged = deepMerge(loadConfig(), newConfig);
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf8');
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf8');
     return merged;
   } catch (err) {
-    console.error('Error saving config.json:', err.message);
+    console.error('Error saving config.json to AppData:', err.message);
     throw err;
   }
 }
@@ -136,5 +147,7 @@ function deepMerge(target, source) {
 module.exports = {
   loadConfig,
   saveConfig,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
+  getWritableConfigPath,
+  CONFIG_PATH: getWritableConfigPath()
 };
