@@ -34,9 +34,17 @@ app.get('/overlay', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'overlay', 'index.html'));
 });
 
+const { checkForUpdates, CURRENT_VERSION } = require('./updater');
+
 app.get('/api/config', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.json(config);
+});
+
+app.get('/api/updates/check', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const result = await checkForUpdates();
+  res.json(result);
 });
 
 // Desktop App Lifecycle endpoints (Second Plane / Tray / Background)

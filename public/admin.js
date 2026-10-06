@@ -870,13 +870,48 @@
     }
   }
 
-  let toastTimeout = null;
-  function showToast(msg) {
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
-      toast.classList.remove('show');
-    }, 2800);
+  // Update Checker (GitHub Releases)
+  const btnCheckUpdate = document.getElementById('btn-check-update');
+  const updateBanner = document.getElementById('update-banner');
+  const updateTitle = document.getElementById('update-title');
+  const updateDesc = document.getElementById('update-desc');
+  const btnDownloadUpdate = document.getElementById('btn-download-update');
+  const btnDismissUpdate = document.getElementById('btn-dismiss-update');
+
+  if (btnDismissUpdate) {
+    btnDismissUpdate.addEventListener('click', () => {
+      if (updateBanner) updateBanner.style.display = 'none';
+    });
   }
+
+  async function checkGithubUpdates(manual = false) {
+    try {
+      if (manual) showToast('Buscando actualizaciones...');
+      const res = await fetch('/api/updates/check');
+      const data = await res.json();
+
+      if (data.updateAvailable) {
+        if (updateBanner) {
+          if (updateTitle) updateTitle.textContent = `🚀 ¡Nueva versión disponible: ${data.latestVersion}!`;
+          if (updateDesc) updateDesc.textContent = `Tienes instalada la v${data.currentVersion}. Novedades: ${data.releaseName || data.latestVersion}`;
+          if (btnDownloadUpdate) btnDownloadUpdate.href = data.downloadUrl || data.htmlUrl;
+          updateBanner.style.display = 'block';
+        }
+        if (manual) showToast(`¡Nueva versión ${data.latestVersion} disponible!`);
+      } else {
+        if (manual) {
+          showToast(`Tienes la última versión (v${data.currentVersion})`);
+        }
+      }
+    } catch (e) {
+      if (manual) showToast('No se pudo verificar en GitHub');
+    }
+  }
+
+  if (btnCheckUpdate) {
+    btnCheckUpdate.addEventListener('click', () => checkGithubUpdates(true));
+  }
+
+  // Check automatically on load (after 2 seconds)
+  setTimeout(() => checkGithubUpdates(false), 2000);
 })();

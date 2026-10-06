@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, clipboard } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell, clipboard, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { startServer, appEvents } = require('./src/server');
+const { checkForUpdates, CURRENT_VERSION } = require('./src/updater');
 
 // Prevent background timer throttling so OBS WebSocket and alerts are always instant
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -56,6 +57,49 @@ function toggleWindow() {
   }
 }
 
+async function promptUpdateCheck(isManual = false) {
+  try {
+    const updateInfo = await checkForUpdates();
+    if (updateInfo.updateAvailable) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const choice = await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: '🚀 Nueva Actualización Disponible',
+          message: `¡Hay una nueva versión disponible! (${updateInfo.latestVersion})`,
+          detail: `Versión instalada: v${updateInfo.currentVersion}\nNueva versión: ${updateInfo.latestVersion}\n\nNovedades:\n${updateInfo.releaseNotes}\n\n¿Deseas descargar la actualización ahora?`,
+          buttons: ['Descargar Actualización', 'Recordar más tarde'],
+          defaultId: 0,
+          cancelId: 1
+        });
+        if (choice.response === 0) {
+          shell.openExternal(updateInfo.downloadUrl);
+        }
+      }
+    } else if (isManual) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Multichat Actualizado',
+          message: `Tienes la versión más reciente (v${CURRENT_VERSION}).`,
+          detail: updateInfo.message || 'No hay nuevas actualizaciones disponibles en GitHub Releases.',
+          buttons: ['Aceptar']
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[Updater] Error checking updates:', err.message);
+    if (isManual && mainWindow && !mainWindow.isDestroyed()) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Comprobación de Actualizaciones',
+        message: 'No se pudo conectar con GitHub Releases.',
+        detail: err.message,
+        buttons: ['Aceptar']
+      });
+    }
+  }
+}
+
 function updateTrayMenu() {
   if (!tray) return;
 
@@ -104,6 +148,13 @@ function updateTrayMenu() {
         } catch (e) {
           console.warn('[AutoStart] Error setting login item:', e.message);
         }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '🔄 Buscar Actualizaciones',
+      click: () => {
+        promptUpdateCheck(true);
       }
     },
     { type: 'separator' },
@@ -237,6 +288,13 @@ async function createWindow() {
       label: 'Ayuda',
       submenu: [
         {
+          label: '🔄 Buscar Actualizaciones en GitHub...',
+          click: () => {
+            promptUpdateCheck(true);
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Overlay para OBS: http://localhost:3333/overlay',
           click: () => {
             shell.openExternal(`http://localhost:${PORT}/overlay`);
@@ -289,6 +347,11 @@ app.whenReady().then(async () => {
     serverInstance = await startServer(PORT);
     console.log('[Electron] Servidor backend listo.');
     await createWindow();
+
+    // Check for updates on GitHub Releases (after 4 seconds)
+    setTimeout(() => {
+      promptUpdateCheck(false);
+    }, 4000);
 
     // Wire application events from Express backend
     if (appEvents) {
