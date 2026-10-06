@@ -21,8 +21,8 @@
     }
   },
   "overlay": {
-    "theme": "minecraft",
-    "fontFamily": "'Silkscreen', monospace",
+    "theme": "neon_red_cyan",
+    "fontFamily": "'Press Start 2P', monospace",
     "fontSize": 12,
     "messageDirection": "bottom-up",
     "maxMessages": 15,
@@ -39,13 +39,14 @@
     "ttsEnabled": true,
     "ttsVolume": 50,
     "ttsSpeed": 1,
-    "ttsLang": "enrique",
+    "ttsLang": "rick_latino",
+    "fishApiKey": "sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE",
     "ttsReadUsername": true,
     "ttsTranslate": false,
     "ttsCommandOnly": false,
     "ttsCommand": "!tts",
     "ttsPermissions": "all",
-    "ttsAntiSpam": true,
+    "ttsAntiSpam": false,
     "bannedWords": [
       "maricon",
       "marica"
@@ -60,7 +61,7 @@
     "customBorderStyle": "solid",
     "customBorderSpeed": "normal",
     "customBorderWidth": 3.5,
-    "textEffect": "shadow",
+    "textEffect": "neon_glow",
     "avatarShape": "circle",
     "messageGap": "normal",
     "messageFlash": true

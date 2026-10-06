@@ -255,7 +255,47 @@ app.get('/api/tts', async (req, res) => {
       }
     }
 
-    // 1. Enrique Voice (Classic Streamer Amazon Polly voice)
+    // 1. Fish Audio Character Voices (Rick Sanchez Latino, Goku Latino)
+    const FISH_MODELS = {
+      'rick_latino': 'f75ae6efbe9945c19be01e233e045d0e', // Rick Sanchez (científico más inteligente de toda la galaxia)
+      'rick_sanchez': 'f75ae6efbe9945c19be01e233e045d0e',
+      'goku_latino': '9f850ee9ada24b20a6866825eaefd3f8'  // Goku (Mario Castañeda DBZ)
+    };
+
+    if (FISH_MODELS[voice]) {
+      const fishApiKey = (config.overlay && config.overlay.fishApiKey) || req.query.apiKey || 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE';
+      const modelId = FISH_MODELS[voice];
+      try {
+        const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + fishApiKey,
+            'Content-Type': 'application/json',
+            'model': 's2.1-pro-free'
+          },
+          body: JSON.stringify({
+            text: speechText.slice(0, 250),
+            reference_id: modelId,
+            format: 'mp3',
+            model: 's2.1-pro-free'
+          })
+        });
+
+        if (fishRes.ok) {
+          res.setHeader('Content-Type', 'audio/mpeg');
+          res.setHeader('Cache-Control', 'no-cache');
+          const arrayBuf = await fishRes.arrayBuffer();
+          return res.send(Buffer.from(arrayBuf));
+        } else {
+          console.warn('[TTS] Fish Audio status error:', fishRes.status);
+        }
+      } catch (fishErr) {
+        console.warn('[TTS] Fish Audio error:', fishErr.message);
+      }
+      voice = 'es_mx_002'; // Fallback to Mexican voice if Fish Audio fails
+    }
+
+    // 2. Enrique Voice (Classic Streamer Amazon Polly voice)
     if (voice === 'enrique' || voice === 'polly_enrique') {
       try {
         const postData = `msg=${encodeURIComponent(speechText.slice(0, 250))}&lang=Enrique&source=ttsmp3`;
