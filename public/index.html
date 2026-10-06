@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Control - Multistream Chat Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700&family=Fredoka:wght@600&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&family=Press+Start+2P&family=Rajdhani:wght@600;700&family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="app.ico">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/></svg>
+        </div>
+        <div>
+          <h1>Multistream Chat Overlay</h1>
+          <p class="brand-subtitle">Twitch • YouTube • Kick • TikTok</p>
+        </div>
+      </div>
+
+      <div class="obs-banner">
+        <div class="app-theme-selector">
+          <label class="app-theme-label" for="select-app-theme">
+            <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.23 19.64 10.56 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+            Tema App:
+          </label>
+          <select id="select-app-theme" class="app-theme-select">
+            <option value="midnight">🌌 Midnight Blue</option>
+            <option value="dark">🌙 Modo Oscuro Clásico</option>
+            <option value="light">☀️ Modo Claro (Light)</option>
+            <option value="cyberpunk">⚡ Cyberpunk 2077</option>
+            <option value="purple">💜 Neon Violet</option>
+            <option value="minecraft">⛏️ Minecraft Edition</option>
+          </select>
+        </div>
+        <div class="obs-info">
+          <span class="obs-tag">ENLACE OBS</span>
+          <span class="obs-url" id="obs-url-display">http://localhost:3333/overlay</span>
+        </div>
+        <button id="btn-copy-obs" class="btn btn-primary">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          Copiar URL para OBS
+        </button>
+        <button id="btn-hide-app" class="btn btn-secondary" title="Ocultar la ventana en la bandeja del sistema (sigue activo para OBS)">
+          <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+          Segundo Plano
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="main-content">
+      <!-- Left Column: Platforms & Simulator -->
+      <section class="config-column">
+        <!-- PLATFORMS SECTION -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              Plataformas en Vivo
+            </h2>
+            <span class="hint-text">Activa y conecta tus directos en tiempo real</span>
+          </div>
+
+          <div class="platforms-grid">
+            <!-- TWITCH -->
+            <div class="platform-card platform-twitch" id="card-twitch">
+              <div class="p-header">
+                <div class="p-title">
+                  <div class="p-icon-wrap twitch">
+                    <svg viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></svg>
+                  </div>
+                  <h3>Twitch</h3>
+                </div>
+                <div class="status-indicator" id="status-twitch">
+                  <span class="dot"></span>
+                  <span class="label">Desconectado</span>
+                </div>
+              </div>
+              <div class="p-body">
+                <label for="input-twitch-channel">Canal / Usuario:</label>
+                <div class="input-with-btn">
+                  <input type="text" id="input-twitch-channel" placeholder="ej: ibai" autocomplete="off" />
+                  <button class="btn btn-connect" id="btn-toggle-twitch">Conectar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- KICK -->
+            <div class="platform-card platform-kick" id="card-kick">
+              <div class="p-header">
+                <div class="p-title">
+                  <div class="p-icon-wrap kick">
+                    <svg viewBox="0 0 24 24"><path d="M3 3h4.5v6.5h2V3h4.5v8.5l-4.5 4.5 5 8H9.5l-2.5-4.5V24H3V3z"/></svg>
+                  </div>
+                  <h3>Kick</h3>
+                </div>
+                <div class="status-indicator" id="status-kick">
+                  <span class="dot"></span>
+                  <span class="label">Desconectado</span>
+                </div>
+              </div>
+              <div class="p-body">
+                <label for="input-kick-channel">Canal / Usuario:</label>
+                <div class="input-with-btn">
+                  <input type="text" id="input-kick-channel" placeholder="ej: westcol" autocomplete="off" />
+                  <button class="btn btn-connect" id="btn-toggle-kick">Conectar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- YOUTUBE -->
+            <div class="platform-card platform-youtube" id="card-youtube">
+              <div class="p-header">
+                <div class="p-title">
+                  <div class="p-icon-wrap youtube">
+                    <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  </div>
+                  <h3>YouTube</h3>
+                </div>
+                <div class="status-indicator" id="status-youtube">
+                  <span class="dot"></span>
+                  <span class="label">Desconectado</span>
+                </div>
+              </div>
+              <div class="p-body">
+                <label for="input-youtube-query">Enlace en vivo, ID o Handle:</label>
+                <div class="input-with-btn">
+                  <input type="text" id="input-youtube-query" placeholder="ej: @streamer o ID video" autocomplete="off" />
+                  <button class="btn btn-connect" id="btn-toggle-youtube">Conectar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- TIKTOK -->
+            <div class="platform-card platform-tiktok" id="card-tiktok">
+              <div class="p-header">
+                <div class="p-title">
+                  <div class="p-icon-wrap tiktok">
+                    <svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.97v7.86c-.01 2.37-.8 4.7-2.31 6.55-1.5 1.86-3.75 3.04-6.14 3.23-2.38.2-4.8-.46-6.68-1.92-1.89-1.47-3.03-3.69-3.14-6.1-.11-2.42.82-4.81 2.52-6.53 1.7-1.72 4.1-2.6 6.5-2.42.14 0 .28.01.42.02v4.06c-.45-.06-.91-.07-1.37-.02-1.3.14-2.49.91-3.07 2.06-.58 1.15-.46 2.55.3 3.6.76 1.05 2.07 1.63 3.36 1.48 1.3-.15 2.39-1.12 2.71-2.39.06-.24.08-.49.08-.74V.02z"/></svg>
+                  </div>
+                  <h3>TikTok Live</h3>
+                </div>
+                <div class="status-indicator" id="status-tiktok">
+                  <span class="dot"></span>
+                  <span class="label">Desconectado</span>
+                </div>
+              </div>
+              <div class="p-body">
+                <label for="input-tiktok-username">Usuario de TikTok:</label>
+                <div class="input-with-btn">
+                  <input type="text" id="input-tiktok-username" placeholder="ej: @usuario" autocomplete="off" />
+                  <button class="btn btn-connect" id="btn-toggle-tiktok">Conectar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIMULATOR & TEST SECTION -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+              Simulador y Pruebas
+            </h2>
+            <button id="btn-clear-chat" class="btn btn-secondary btn-sm">Limpiar Overlay</button>
+          </div>
+          <p class="section-desc">Envía mensajes de prueba instantáneos a tu overlay para calibrar tamaños, colores y alertas.</p>
+
+          <div class="test-buttons-row">
+            <button class="btn btn-test twitch" data-platform="twitch">
+              <span class="dot"></span> Probar Twitch
+            </button>
+            <button class="btn btn-test kick" data-platform="kick">
+              <span class="dot"></span> Probar Kick
+            </button>
+            <button class="btn btn-test youtube" data-platform="youtube">
+              <span class="dot"></span> Probar YouTube
+            </button>
+            <button class="btn btn-test tiktok" data-platform="tiktok">
+              <span class="dot"></span> Probar TikTok
+            </button>
+          </div>
+
+          <div class="custom-test-row">
+            <input type="text" id="input-custom-msg" placeholder="Escribe un mensaje personalizado para enviar al overlay..." />
+            <select id="select-test-platform">
+              <option value="twitch">Twitch</option>
+              <option value="kick">Kick</option>
+              <option value="youtube">YouTube</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+            <button id="btn-send-custom" class="btn btn-primary">Enviar</button>
+          </div>
+        </div>
+
+        <!-- CUSTOMIZATION SECTION -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.23 19.64 10.56 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+              Personalización del Overlay
+            </h2>
+            <button id="btn-save-settings" class="btn btn-primary btn-sm">Guardar Cambios</button>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Theme -->
+            <div class="form-group">
+              <label for="setting-theme">Estilo Visual / Tema:</label>
+              <select id="setting-theme" class="form-control">
+                <option value="custom">🎨 Personalizado (Diseño manual de colores y bordes)</option>
+                <option value="minecraft">🌱 Minecraft Bloque de Tierra y Pasto (Grass & Dirt Block Oficial)</option>
+                <option value="matrix">🟢 Matrix Cyber Terminal (Hacker Digital Verde Neón)</option>
+                <option value="synthwave">🌅 Synthwave 80s (Outrun Púrpura, Magenta y Naranja Neón)</option>
+                <option value="gold_vip">👑 Oro VIP Deluxe (Dorado Brillante y Negro Premium)</option>
+                <option value="ice_frost">❄️ Hielo Glacial Sub-Zero (Azul Escarcha y Halo Ártico)</option>
+                <option value="blood_crimson">🩸 Demonio Carmesí (Blood Neon Rojo Fuerte / Gamer)</option>
+                <option value="neon_red_cyan">🔥 Neon Giratorio (Fondo Negro + Borde Giratorio Continuo Rojo / Celeste)</option>
+                <option value="neon_pulse_red_cyan">⚡ Neon Pulso (Fondo Negro + Alternancia Rojo / Celeste)</option>
+                <option value="glassmorphism">Glassmorphism Moderno (Translúcido)</option>
+                <option value="cyberpunk">Cyberpunk Glow (Bordes Neón)</option>
+                <option value="neon_purple">Neon Purple (Púrpura Gamer)</option>
+                <option value="minimal_clean">Minimalista Oscuro (Elegante)</option>
+                <option value="bubble_cute">Bubble Rounded (Burbujas Suaves)</option>
+                <option value="pixel_retro">Pixel Retro (8-Bit Arcade)</option>
+              </select>
+            </div>
+
+            <!-- Custom Theme Checkbox Toggle Box -->
+            <div class="custom-theme-toggle-box form-group" id="box-custom-theme-toggle">
+              <label class="toggle-control" for="setting-custom-theme-enable">
+                <input type="checkbox" id="setting-custom-theme-enable" />
+                <span class="toggle-switch"></span>
+                <span class="toggle-title">🎨 <strong>Casilla: Estilo Personalizado</strong> (Activar personalización manual)</span>
+              </label>
+              <p class="custom-toggle-hint">Al activarse, puedes elegir color de fondo, color o multicolor de borde, tipo y estilo animado o estático.</p>
+            </div>
+
+            <!-- Manual Customization Panel (Shows when Custom is activated) -->
+            <div class="custom-style-panel form-group full-width" id="panel-custom-style" style="display: none;">
+              <div class="custom-panel-header">
+                <div class="custom-panel-title">
+                  <svg viewBox="0 0 24 24" class="custom-panel-icon"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.23 19.64 10.56 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+                  <h4>Personalización Manual de Estilos</h4>
+                </div>
+                <span class="custom-panel-tag">En vivo para OBS</span>
+              </div>
+
+              <!-- Mini Live Preview -->
+              <div class="custom-preview-wrapper">
+                <div class="custom-preview-heading">Vista previa del mensaje:</div>
+                <div class="custom-preview-box">
+                  <div class="custom-preview-card" id="custom-preview-card">
+                    <div class="preview-avatar">T</div>
+                    <div class="preview-body-wrap">
+                      <div class="preview-header">
+                        <span class="preview-badge-tiktok">TIKTOK</span>
+                        <span class="preview-badge-role">Anfitrión</span>
+                        <span class="preview-username">EstebanMasters</span>
+                        <span class="preview-time">22:45</span>
+                      </div>
+                      <div class="preview-message-text">¡Probando tu diseño con bordes y fondo personalizados! 🔥✨</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="custom-controls-grid">
+                <!-- Color de Fondo -->
+                <div class="custom-field">
+                  <label for="setting-custom-bg-color">Color de Fondo:</label>
+                  <div class="color-picker-input-group">
+                    <input type="color" id="setting-custom-bg-color" value="#000000" />
+                    <input type="text" id="setting-custom-bg-color-text" class="color-hex-field" value="#000000" maxlength="7" />
+                  </div>
+                </div>
+
+                <!-- Color del Texto -->
+                <div class="custom-field">
+                  <label for="setting-custom-text-color">Color del Texto:</label>
+                  <div class="color-picker-input-group">
+                    <input type="color" id="setting-custom-text-color" value="#ffffff" />
+                    <input type="text" id="setting-custom-text-color-text" class="color-hex-field" value="#FFFFFF" maxlength="7" />
+                  </div>
+                </div>
+
+                <!-- Casilla Multicolor de Borde -->
+                <div class="custom-field full-row">
+                  <label class="toggle-control" for="setting-custom-border-multicolor">
+                    <input type="checkbox" id="setting-custom-border-multicolor" checked />
+                    <span class="toggle-switch"></span>
+                    <span><strong>Multicolor de Borde</strong> (Gradiente combinado de 2 colores)</span>
+                  </label>
+                </div>
+
+                <!-- Color de Borde 1 -->
+                <div class="custom-field" id="wrap-border-color-1">
+                  <label for="setting-custom-border-color" id="lbl-border-color-1">Color de Borde (Color 1):</label>
+                  <div class="color-picker-input-group">
+                    <input type="color" id="setting-custom-border-color" value="#ff1244" />
+                    <input type="text" id="setting-custom-border-color-text" class="color-hex-field" value="#ff1244" maxlength="7" />
+                  </div>
+                </div>
+
+                <!-- Color de Borde 2 (Multicolor) -->
+                <div class="custom-field" id="wrap-border-color-2">
+                  <label for="setting-custom-border-color2">Color de Borde (Color 2):</label>
+                  <div class="color-picker-input-group">
+                    <input type="color" id="setting-custom-border-color2" value="#00f0ff" />
+                    <input type="text" id="setting-custom-border-color2-text" class="color-hex-field" value="#00f0ff" maxlength="7" />
+                  </div>
+                </div>
+
+                <!-- Tipo y animación de borde (Animado o Estático) -->
+                <div class="custom-field">
+                  <label for="setting-custom-border-anim">Tipo de Borde (Animado o Estático):</label>
+                  <select id="setting-custom-border-anim" class="form-control">
+                    <option value="rotating">🌀 Animado: Giro Continuo 360° (Borde que rota sin parar)</option>
+                    <option value="rainbow_wave">🌈 Animado: RGB Gamer Rainbow (Onda Cromática Chroma)</option>
+                    <option value="fire_glow">🔥 Animado: Fuego y Llamas (Resplandor ardiente oscilante)</option>
+                    <option value="cyber_glitch">⚡ Animado: Cyber Glitch / Rayo Neón (Parpadeo eléctrico)</option>
+                    <option value="breathe_dual">🌊 Animado: Respiración Bicolor (Latido suave expansivo)</option>
+                    <option value="pulse">💓 Animado: Pulso Neón (Latido luminoso simple)</option>
+                    <option value="static">🛑 Estático: Fijo (Sin animación)</option>
+                  </select>
+                </div>
+
+                  <!-- Estilo de borde -->
+                <div class="custom-field">
+                  <label for="setting-custom-border-style">Estilo de Borde:</label>
+                  <select id="setting-custom-border-style" class="form-control">
+                    <option value="neon">✨ Neón Glow (Resplandor brillante iluminado)</option>
+                    <option value="double_neon">🎆 Doble Anillo Neón (Doble borde paralelo)</option>
+                    <option value="minecraft_dirt">🌱 Minecraft Bloque de Tierra y Pasto (Hierba y Tierra 3D)</option>
+                    <option value="minecraft_block">⛏️ Minecraft Piedra / Bloque 3D (Biselado Pixel)</option>
+                    <option value="minecraft_diamond">💎 Minecraft Diamante Neón (Borde Diamante 3D)</option>
+                    <option value="minecraft_gui">🗃️ Minecraft GUI / Inventario (Bisel Gris Clásico)</option>
+                    <option value="holographic">💿 Holográfico Iridiscente (Brillo multicolor perlado)</option>
+                    <option value="gradient_soft">🎨 Difuminado Suave (Aura de luz flotante sin borde duro)</option>
+                    <option value="solid">⏹️ Sólido (Línea nítida)</option>
+                    <option value="glass">🪟 Vidrio / Translúcido (Efecto difuminado)</option>
+                    <option value="dashed">✂️ Discontinuo / Punteado</option>
+                  </select>
+                </div>
+
+                <!-- Velocidad del borde animado -->
+                <div class="custom-field">
+                  <label for="setting-custom-border-speed">Velocidad del Borde Animado:</label>
+                  <select id="setting-custom-border-speed" class="form-control">
+                    <option value="slow">🐢 Relajante y Lento (5s)</option>
+                    <option value="normal" selected>⏱️ Normal Equilibrado (3s)</option>
+                    <option value="fast">⚡ Rápido y Dinámico (1.5s)</option>
+                    <option value="turbo">🚀 Turbo Extremo (0.8s)</option>
+                  </select>
+                </div>
+
+                <!-- Grosor de borde -->
+                <div class="custom-field">
+                  <div class="label-with-value">
+                    <label for="setting-custom-border-width">Grosor de Borde:</label>
+                    <span class="range-val" id="val-custom-border-width">2.5px</span>
+                  </div>
+                  <input type="range" id="setting-custom-border-width" min="1" max="8" step="0.5" value="2.5" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Font Family -->
+            <div class="form-group">
+              <label for="setting-font">Tipografía:</label>
+              <select id="setting-font" class="form-control">
+                <optgroup label="🎮 Pixel & Retro Gaming">
+                  <option value="'Silkscreen', monospace">⛏️ Minecraft / Silkscreen Pixel (Oficial)</option>
+                  <option value="'VT323', monospace">📺 VT323 Console / Retro Terminal</option>
+                  <option value="'Press Start 2P', monospace">🕹️ Press Start 2P (Arcade 8-Bit)</option>
+                </optgroup>
+                <optgroup label="⚡ Futuristas & Cyber Gamer">
+                  <option value="'Rajdhani', sans-serif">🤖 Rajdhani (Futurista / Cyberpunk)</option>
+                  <option value="'Orbitron', sans-serif">🛸 Orbitron (Sci-Fi / Mecha)</option>
+                </optgroup>
+                <optgroup label="🎨 Streamer & Populares">
+                  <option value="'Inter', sans-serif">✨ Inter (Moderna y Ultra-Limpia)</option>
+                  <option value="'Poppins', sans-serif">🌟 Poppins (Geométrica Elegante)</option>
+                  <option value="'Bungee', cursive">💥 Bungee (Letras Gruesas de Bloque)</option>
+                  <option value="'Fredoka', sans-serif">🎈 Fredoka (Divertida y Redondeada)</option>
+                  <option value="'Cinzel', serif">⚔️ Cinzel (Medieval / Fantasía RPG)</option>
+                  <option value="'Montserrat', sans-serif">🏛️ Montserrat (Robusta Titular)</option>
+                  <option value="'Roboto', sans-serif">📱 Roboto (Estándar)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Font Size -->
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-font-size">Tamaño de Fuente:</label>
+                <span class="range-val" id="val-font-size">16px</span>
+              </div>
+              <input type="range" id="setting-font-size" min="12" max="28" step="1" value="16" />
+            </div>
+
+            <!-- Card Opacity -->
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-card-opacity">Opacidad del Fondo:</label>
+                <span class="range-val" id="val-card-opacity">85%</span>
+              </div>
+              <input type="range" id="setting-card-opacity" min="10" max="100" step="5" value="85" />
+            </div>
+
+            <!-- Border Radius -->
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-border-radius">Bordes Redondeados:</label>
+                <span class="range-val" id="val-border-radius">12px</span>
+              </div>
+              <input type="range" id="setting-border-radius" min="0" max="26" step="2" value="12" />
+            </div>
+
+            <!-- Animation -->
+            <div class="form-group">
+              <label for="setting-animation">Animación de Entrada:</label>
+              <select id="setting-animation" class="form-control">
+                <option value="slide-left">Deslizar desde la izquierda</option>
+                <option value="slide-up">Deslizar desde abajo</option>
+                <option value="pop-in">Pop / Zoom Elástico</option>
+                <option value="fade">Desvanecimiento Suave</option>
+              </select>
+            </div>
+
+            <!-- Auto-hide timeout -->
+            <div class="form-group">
+              <label for="setting-autohide">Ocultar Mensajes Tras:</label>
+              <select id="setting-autohide" class="form-control">
+                <option value="0">Permanente (Nunca ocultar)</option>
+                <option value="5">5 Segundos</option>
+                <option value="10">10 Segundos</option>
+                <option value="15">15 Segundos</option>
+                <option value="30">30 Segundos</option>
+                <option value="60">60 Segundos</option>
+              </select>
+            </div>
+
+            <!-- Max messages -->
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-max-messages">Máx. Mensajes Visibles:</label>
+                <span class="range-val" id="val-max-messages">15</span>
+              </div>
+              <input type="range" id="setting-max-messages" min="3" max="30" step="1" value="15" />
+            </div>
+
+            <!-- Direction -->
+            <div class="form-group">
+              <label for="setting-direction">Dirección del Chat:</label>
+              <select id="setting-direction" class="form-control">
+                <option value="bottom-up">Abajo hacia arriba (Nuevos abajo)</option>
+                <option value="top-down">Arriba hacia abajo (Nuevos arriba)</option>
+              </select>
+            </div>
+
+            <!-- Text Effect -->
+            <div class="form-group">
+              <label for="setting-text-effect">Efecto y Legibilidad del Texto:</label>
+              <select id="setting-text-effect" class="form-control">
+                <option value="shadow" selected>🌑 Sombra Profunda 3D (Máxima legibilidad sobre juegos)</option>
+                <option value="minecraft_shadow">⛏️ Sombra Minecraft Pixel (Offset 2px #3f3f3f)</option>
+                <option value="neon_glow">✨ Resplandor Neón (Aura de luz iluminada)</option>
+                <option value="retro_stroke">🖋️ Contorno Negro Retro (Estilo cómic / arcade)</option>
+                <option value="none">Normal (Texto plano limpio)</option>
+              </select>
+            </div>
+
+            <!-- Avatar Shape -->
+            <div class="form-group">
+              <label for="setting-avatar-shape">Forma de los Avatares:</label>
+              <select id="setting-avatar-shape" class="form-control">
+                <option value="circle" selected>⚪ Círculo Clásico</option>
+                <option value="minecraft_skin">⛏️ Minecraft Skin Head (Cuadrado Pixelado)</option>
+                <option value="squircle">🔲 Squircle Gamer (Cuadrado redondeado moderno)</option>
+                <option value="hexagon">⬡ Hexágono Futurista Cyber</option>
+                <option value="rounded_diamond">🔶 Rombo / Diamante Suave</option>
+              </select>
+            </div>
+
+            <!-- Message Gap -->
+            <div class="form-group">
+              <label for="setting-message-gap">Espaciado entre Mensajes:</label>
+              <select id="setting-message-gap" class="form-control">
+                <option value="compact">Compacto (6px - ideal para streams activos)</option>
+                <option value="normal" selected>Normal Equilibrado (10px)</option>
+                <option value="spaced">Espaciado Flotante (18px)</option>
+              </select>
+            </div>
+
+            <!-- Banned words -->
+            <div class="form-group full-width">
+              <label for="setting-banned-words">Filtro de Palabras Prohibidas (separadas por coma):</label>
+              <input type="text" id="setting-banned-words" placeholder="palabra1, palabra2, insulto..." class="form-control" />
+              <p class="custom-toggle-hint" style="margin-top: 5px;">🚫 Las palabras añadidas se censuran con <code>***</code> en pantalla y sus mensajes se <strong>silencian por completo del TTS</strong> para proteger tu stream.</p>
+            </div>
+
+            <!-- Toggles Section -->
+            <div class="toggles-row full-width">
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-show-platform-badge" checked />
+                <span class="toggle-switch"></span>
+                <span>Insignia de Plataforma</span>
+              </label>
+
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-show-avatar" checked />
+                <span class="toggle-switch"></span>
+                <span>Avatares de Usuarios</span>
+              </label>
+
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-show-user-badges" checked />
+                <span class="toggle-switch"></span>
+                <span>Insignias de Rango (Mod/Sub)</span>
+              </label>
+
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-show-timestamp" />
+                <span class="toggle-switch"></span>
+                <span>Hora del Mensaje</span>
+              </label>
+
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-sound-enabled" />
+                <span class="toggle-switch"></span>
+                <span>Sonido Ping al Recibir</span>
+              </label>
+
+              <label class="toggle-control">
+                <input type="checkbox" id="setting-message-flash" checked />
+                <span class="toggle-switch"></span>
+                <span>✨ Destello Flash al Llegar</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- TTS / TEXT-TO-SPEECH SECTION -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+              Voz en Vivo / Text-To-Speech (TTS)
+            </h2>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="btn-skip-tts" class="btn btn-secondary btn-sm" title="Saltar el audio actual y pasar al siguiente en la cola">⏭️ Saltar Actual</button>
+              <button id="btn-stop-tts" class="btn btn-danger btn-sm" title="Detener el audio actual y vaciar todos los mensajes en cola">⏹️ Detener / Skipear Todos</button>
+              <button id="btn-test-tts" class="btn btn-secondary btn-sm">🔊 Probar Voz</button>
+            </div>
+          </div>
+          <p class="section-desc">Lee en voz alta automáticamente los mensajes que llegan desde YouTube, Kick, TikTok o Twitch tanto en OBS como en tu navegador.</p>
+
+          <div class="settings-grid">
+            <div class="form-group">
+              <label class="toggle-control" style="margin-top: 6px;">
+                <input type="checkbox" id="setting-tts-enabled" checked />
+                <span class="toggle-switch"></span>
+                <strong style="font-size: 0.95rem;">Activar Voz TTS (Lectura del Chat)</strong>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="toggle-control" style="margin-top: 6px;">
+                <input type="checkbox" id="setting-tts-read-username" checked />
+                <span class="toggle-switch"></span>
+                <span>Leer nombre de usuario (ej: <em>"Esteban dice..."</em>)</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label for="setting-tts-permissions">Quién puede usar la voz (Roles):</label>
+              <select id="setting-tts-permissions" class="form-control">
+                <option value="all">👥 Todos (Cualquier espectador)</option>
+                <option value="mods_subs">⭐ Moderadores y Suscriptores/Miembros</option>
+                <option value="subs">💎 Solo Suscriptores y Miembros</option>
+                <option value="mods">🛡️ Solo Moderadores</option>
+                <option value="owner">👑 Solo el Streamer / Anfitrión</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="toggle-control" style="margin-top: 6px;">
+                <input type="checkbox" id="setting-tts-command-only" />
+                <span class="toggle-switch"></span>
+                <span>Exigir comando para hablar (ej: <em>!tts mensaje</em>)</span>
+              </label>
+            </div>
+
+            <div class="form-group" id="wrap-tts-command">
+              <label for="setting-tts-command">Comando activador del TTS:</label>
+              <input type="text" id="setting-tts-command" class="form-control" value="!tts" placeholder="!tts" />
+            </div>
+
+            <div class="form-group">
+              <label class="toggle-control" style="margin-top: 6px;">
+                <input type="checkbox" id="setting-tts-anti-spam" checked />
+                <span class="toggle-switch"></span>
+                <span>🛡️ <strong>Filtro Anti-Spam TTS</strong> (bloquea números gigantes/al azar, flood, risas infinitas y repeticiones)</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label for="setting-tts-lang">Voz y Acento del Chat:</label>
+              <select id="setting-tts-lang" class="form-control">
+                <optgroup label="🇪🇸 Español">
+                  <option value="es_mx_002">🇲🇽 Hombre Locutor (México / Acento Latino)</option>
+                  <option value="enrique">🇪🇸 Enrique (Voz Clásica de Streamer / España)</option>
+                  <option value="es_002">🇪🇸 Hombre (España / Acento Castellano)</option>
+                  <option value="es_female_f6">👩 Mujer (Español / Tono Suave)</option>
+                  <option value="es_male_m3">🎙️ Hombre (Voz Grave / Profunda)</option>
+                  <option value="google_es">🌐 Google Clásica (Femenina Latinoamérica)</option>
+                  <option value="google_es_es">🌐 Google Clásica (Femenina España)</option>
+                </optgroup>
+                <optgroup label="🇷🇺 Ruso (Rusia)">
+                  <option value="ru_001">🇷🇺 Ruso Femenino (TikTok / Enérgica)</option>
+                  <option value="google_ru">🇷🇺 Ruso Clásico (Google)</option>
+                </optgroup>
+                <optgroup label="🇮🇳 Indio / Hindi">
+                  <option value="google_hi">🇮🇳 Indio / Hindi (India - Clásica)</option>
+                  <option value="en_in_001">🇮🇳 Indio (Inglés con acento de la India)</option>
+                </optgroup>
+                <optgroup label="🇩🇪 Alemán (Alemania)">
+                  <option value="de_001">🇩🇪 Alemán Femenino (TikTok)</option>
+                  <option value="de_002">🇩🇪 Alemán Masculino (TikTok)</option>
+                  <option value="google_de">🇩🇪 Alemán Clásico (Google)</option>
+                </optgroup>
+                <optgroup label="🇺🇸 Inglés">
+                  <option value="en_male_narration">🎬 Narrador Épico (Inglés Cine)</option>
+                  <option value="en_us_001">👱‍♀️ Jessie (Femenina Viral TikTok)</option>
+                  <option value="en_us_006">👱‍♂️ Joey (Hombre Inglés USA)</option>
+                </optgroup>
+                <optgroup label="Otras Voces Internacionales">
+                  <option value="br_001">🇧🇷 Mujer (Portugués de Brasil)</option>
+                  <option value="br_005">🇧🇷 Hombre (Portugués de Brasil)</option>
+                  <option value="fr_001">🇫🇷 Francés (París)</option>
+                  <option value="jp_001">🇯🇵 Japonés (Anime)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="toggle-control" style="margin-top: 6px;">
+                <input type="checkbox" id="setting-tts-translate" />
+                <span class="toggle-switch"></span>
+                <span>Traducir mensajes al idioma de la voz antes de leer</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-tts-speed">Velocidad de Lectura (TTS):</label>
+                <span class="range-val" id="val-tts-speed">1.00x</span>
+              </div>
+              <input type="range" id="setting-tts-speed" min="0.5" max="2.0" step="0.05" value="1.0" />
+            </div>
+
+            <div class="form-group">
+              <div class="label-with-value">
+                <label for="setting-tts-volume">Volumen de la Voz:</label>
+                <span class="range-val" id="val-tts-volume">90%</span>
+              </div>
+              <input type="range" id="setting-tts-volume" min="10" max="100" step="5" value="90" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Live OBS Overlay Preview -->
+      <section class="preview-column">
+        <div class="card preview-card">
+          <div class="card-header">
+            <h2>
+              <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.89-2-2-2zm0 14H3V5h18v12z"/></svg>
+              Vista Previa en Vivo
+            </h2>
+            <span class="badge-preview">Actualización en tiempo real</span>
+          </div>
+
+          <div class="preview-viewport-wrapper">
+            <!-- Simulated OBS transparent background checkers -->
+            <div class="preview-checkers">
+              <iframe id="preview-iframe" src="/overlay?preview=true" title="Overlay Preview"></iframe>
+            </div>
+          </div>
+
+          <div class="preview-footer">
+            <div class="preview-tips">
+              <strong>💡 Consejo para OBS Studio:</strong> Agrega una fuente tipo <em>Navegador (Browser Source)</em>, pega la URL <code>http://localhost:3333/overlay</code>, resolución sugerida: <strong>450 x 700</strong>.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Configuración guardada correctamente</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

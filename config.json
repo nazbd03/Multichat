@@ -1,0 +1,68 @@
+{
+  "port": 3333,
+  "appTheme": "minecraft",
+  "platforms": {
+    "twitch": {
+      "enabled": true,
+      "channel": "EstebanMasters"
+    },
+    "youtube": {
+      "enabled": true,
+      "query": "@EstebanMastersBD",
+      "mode": "auto"
+    },
+    "kick": {
+      "enabled": true,
+      "channel": "estebanmasters"
+    },
+    "tiktok": {
+      "enabled": true,
+      "username": "@estebanmastersbd"
+    }
+  },
+  "overlay": {
+    "theme": "minecraft",
+    "fontFamily": "'Silkscreen', monospace",
+    "fontSize": 12,
+    "messageDirection": "bottom-up",
+    "maxMessages": 15,
+    "autoHideDelay": 15,
+    "animation": "slide-left",
+    "cardOpacity": 75,
+    "borderRadius": 12,
+    "showPlatformBadge": true,
+    "showAvatar": true,
+    "showUserBadges": true,
+    "showTimestamp": false,
+    "soundEnabled": true,
+    "soundVolume": 50,
+    "ttsEnabled": true,
+    "ttsVolume": 50,
+    "ttsSpeed": 1,
+    "ttsLang": "google_ru",
+    "ttsReadUsername": true,
+    "ttsTranslate": false,
+    "ttsCommandOnly": false,
+    "ttsCommand": "!tts",
+    "ttsPermissions": "all",
+    "ttsAntiSpam": true,
+    "bannedWords": [
+      "maricon",
+      "marica"
+    ],
+    "customThemeEnabled": false,
+    "customBgColor": "#000000",
+    "customTextColor": "#ffffff",
+    "customBorderMulticolor": true,
+    "customBorderColor": "#8a0000",
+    "customBorderColor2": "#05cdff",
+    "customBorderAnim": "breathe_dual",
+    "customBorderStyle": "solid",
+    "customBorderSpeed": "normal",
+    "customBorderWidth": 3.5,
+    "textEffect": "shadow",
+    "avatarShape": "circle",
+    "messageGap": "normal",
+    "messageFlash": true
+  }
+}

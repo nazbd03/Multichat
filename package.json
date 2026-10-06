@@ -1,0 +1,56 @@
+{
+  "name": "multichat",
+  "version": "1.0.0",
+  "description": "Custom Multistream Chat Overlay for Twitch, YouTube, Kick, and TikTok",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "app": "electron .",
+    "server": "node src/server.js",
+    "dist": "electron-builder --win portable",
+    "dist:installer": "electron-builder --win nsis"
+  },
+  "keywords": [
+    "multistream",
+    "overlay",
+    "twitch",
+    "youtube",
+    "kick",
+    "tiktok",
+    "obs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@retconned/kick-js": "^0.8.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "tiktok-live-connector": "^2.5.0",
+    "ws": "^8.22.0",
+    "youtube-chat": "^2.2.0"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1"
+  },
+  "build": {
+    "appId": "com.estebanmasters.multichat",
+    "productName": "Multichat Overlay",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "public/app.ico"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "config.json",
+      "src/**/*",
+      "public/**/*"
+    ],
+    "asar": true
+  }
+}
