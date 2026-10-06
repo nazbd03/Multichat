@@ -263,7 +263,8 @@ app.get('/api/tts', async (req, res) => {
     };
 
     if (FISH_MODELS[voice]) {
-      const fishApiKey = (config.overlay && config.overlay.fishApiKey) || req.query.apiKey || 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE';
+      const DEFAULT_FISH_KEY = 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE';
+      const fishApiKey = (config.overlay && config.overlay.fishApiKey && config.overlay.fishApiKey.trim()) || DEFAULT_FISH_KEY;
       const modelId = FISH_MODELS[voice];
       try {
         const fishRes = await fetch('https://api.fish.audio/v1/tts', {

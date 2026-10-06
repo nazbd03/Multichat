@@ -94,7 +94,6 @@
   const valTtsVolume = document.getElementById('val-tts-volume');
   const settingTtsSpeed = document.getElementById('setting-tts-speed');
   const valTtsSpeed = document.getElementById('val-tts-speed');
-  const settingFishApiKey = document.getElementById('setting-fish-api-key');
   const btnTestTts = document.getElementById('btn-test-tts');
   const btnSkipTts = document.getElementById('btn-skip-tts');
   const btnStopTts = document.getElementById('btn-stop-tts');
@@ -247,7 +246,6 @@
     settingShowUserBadges, settingShowTimestamp, settingSoundEnabled,
     settingTtsEnabled, settingTtsReadUsername, settingTtsTranslate, settingTtsLang,
     settingTtsPermissions, settingTtsCommandOnly, settingTtsAntiSpam,
-    settingFishApiKey,
     settingCustomBorderSpeed, settingTextEffect, settingAvatarShape,
     settingMessageGap, settingMessageFlash
   ].forEach(elem => {
@@ -682,10 +680,6 @@
         valTtsSpeed.textContent = `${parseFloat(spd).toFixed(2)}x`;
       }
 
-      if (settingFishApiKey) {
-        settingFishApiKey.value = o.fishApiKey || '';
-      }
-
       if (Array.isArray(o.bannedWords)) {
         settingBannedWords.value = o.bannedWords.join(', ');
       }
@@ -866,7 +860,7 @@
         ttsCommand: settingTtsCommand ? settingTtsCommand.value.trim() || '!tts' : '!tts',
         ttsAntiSpam: settingTtsAntiSpam ? settingTtsAntiSpam.checked : true,
         ttsLang: settingTtsLang ? settingTtsLang.value : 'es_mx_002',
-        fishApiKey: settingFishApiKey ? settingFishApiKey.value.trim() : (currentConfig.overlay?.fishApiKey || ''),
+        fishApiKey: currentConfig.overlay?.fishApiKey || 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE',
         ttsVolume: settingTtsVolume ? parseInt(settingTtsVolume.value, 10) : 90,
         ttsSpeed: settingTtsSpeed ? parseFloat(settingTtsSpeed.value) : 1.0,
         bannedWords: bannedWordsArr
