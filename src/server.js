@@ -255,21 +255,35 @@ app.get('/api/tts', async (req, res) => {
       }
     }
 
-    // 1. Enrique Voice (Amazon Polly Spanish via StreamElements)
+    // 1. Enrique Voice (Classic Streamer Amazon Polly voice)
     if (voice === 'enrique' || voice === 'polly_enrique') {
       try {
-        const seUrl = `https://api.streamelements.com/kappa/v2/speech?voice=Enrique&text=${encodeURIComponent(speechText.slice(0, 200))}`;
-        const seRes = await fetch(seUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        const postData = `msg=${encodeURIComponent(speechText.slice(0, 250))}&lang=Enrique&source=ttsmp3`;
+        const ttsRes = await fetch('https://ttsmp3.com/makemp3_new.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+          },
+          body: postData
         });
-        if (seRes.ok) {
-          res.setHeader('Content-Type', 'audio/mpeg');
-          res.setHeader('Cache-Control', 'no-cache');
-          const arrayBuf = await seRes.arrayBuffer();
-          return res.send(Buffer.from(arrayBuf));
+
+        if (ttsRes.ok) {
+          const ttsData = await ttsRes.json();
+          if (ttsData && ttsData.URL) {
+            const mp3Res = await fetch(ttsData.URL, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+            });
+            if (mp3Res.ok) {
+              res.setHeader('Content-Type', 'audio/mpeg');
+              res.setHeader('Cache-Control', 'no-cache');
+              const arrayBuf = await mp3Res.arrayBuffer();
+              return res.send(Buffer.from(arrayBuf));
+            }
+          }
         }
-      } catch (seErr) {
-        console.warn('[TTS] StreamElements Enrique voice error, trying fallback:', seErr.message);
+      } catch (enriqueErr) {
+        console.warn('[TTS] Enrique voice error, trying fallback:', enriqueErr.message);
       }
       voice = 'es_002'; // Fallback to Spanish male
     }
