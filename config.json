@@ -39,8 +39,7 @@
     "ttsEnabled": true,
     "ttsVolume": 50,
     "ttsSpeed": 1,
-    "ttsLang": "rick_latino",
-    "fishApiKey": "sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE",
+    "ttsLang": "goku_latino",
     "ttsReadUsername": true,
     "ttsTranslate": false,
     "ttsCommandOnly": false,
@@ -64,6 +63,7 @@
     "textEffect": "neon_glow",
     "avatarShape": "circle",
     "messageGap": "normal",
-    "messageFlash": true
+    "messageFlash": true,
+    "fishApiKey": "sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE"
   }
 }
