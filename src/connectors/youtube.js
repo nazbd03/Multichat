@@ -37,13 +37,15 @@ class YouTubeConnector extends EventEmitter {
     return { handle };
   }
 
-  async connect(query) {
+  async connect(query, isBackgroundRetry = false) {
     if (!query) return;
-    this.disconnect();
+    this.disconnect(false);
 
     this.query = query;
     this.shouldReconnect = true;
-    this.setStatus('connecting');
+    if (!isBackgroundRetry) {
+      this.setStatus('connecting');
+    }
 
     const options = this.parseQuery(query);
     if (!options) {
@@ -65,18 +67,27 @@ class YouTubeConnector extends EventEmitter {
 
       this.liveChat.on('error', (err) => {
         console.error('[YouTube] Error:', err.message || err);
-        this.setStatus('error', err.message || 'Error en stream de YouTube');
-        if (this.shouldReconnect) {
-          this.scheduleReconnect();
+        const errMsg = err.message || 'Error en stream de YouTube';
+        const isOffline = errMsg.includes('No se encontró') || errMsg.includes('not found') || errMsg.includes('offline');
+        if (isOffline) {
+          this.setStatus('offline', 'No en vivo (esperando directo)');
+          if (this.shouldReconnect) {
+            this.scheduleReconnect(35000, true);
+          }
+        } else {
+          this.setStatus('error', errMsg);
+          if (this.shouldReconnect) {
+            this.scheduleReconnect(20000, false);
+          }
         }
       });
 
       this.liveChat.on('end', (reason) => {
         console.log('[YouTube] Stream finalizado:', reason);
         if (this.status !== 'disconnected') {
-          this.setStatus('disconnected');
+          this.setStatus('offline', 'No en vivo (esperando directo)');
           if (this.shouldReconnect) {
-            this.scheduleReconnect();
+            this.scheduleReconnect(35000, true);
           }
         }
       });
@@ -86,10 +97,20 @@ class YouTubeConnector extends EventEmitter {
         throw new Error('No se encontró una transmisión en vivo activa');
       }
     } catch (err) {
-      console.error('[YouTube] Connection failed:', err.message);
-      this.setStatus('error', err.message);
-      if (this.shouldReconnect) {
-        this.scheduleReconnect();
+      const errMsg = err.message || '';
+      const isOffline = errMsg.includes('No se encontró') || errMsg.includes('not found') || errMsg.includes('offline') || errMsg.includes('Live stream not found');
+      if (isOffline) {
+        console.log(`[YouTube] Canal no está en vivo actualmente para ${this.query}. Reintentando en segundo plano...`);
+        this.setStatus('offline', 'No en vivo (esperando directo)');
+        if (this.shouldReconnect) {
+          this.scheduleReconnect(35000, true);
+        }
+      } else {
+        console.error('[YouTube] Connection failed:', errMsg);
+        this.setStatus('error', errMsg);
+        if (this.shouldReconnect) {
+          this.scheduleReconnect(20000, false);
+        }
       }
     }
   }
@@ -172,8 +193,10 @@ class YouTubeConnector extends EventEmitter {
     }
   }
 
-  disconnect() {
-    this.shouldReconnect = false;
+  disconnect(resetReconnect = true) {
+    if (resetReconnect) {
+      this.shouldReconnect = false;
+    }
     clearTimeout(this.reconnectTimer);
     if (this.liveChat) {
       try {
@@ -181,21 +204,25 @@ class YouTubeConnector extends EventEmitter {
       } catch (e) {}
       this.liveChat = null;
     }
-    this.setStatus('disconnected');
+    if (resetReconnect) {
+      this.setStatus('disconnected');
+    }
   }
 
-  scheduleReconnect() {
+  scheduleReconnect(delay = 35000, isBackgroundRetry = true) {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       if (this.shouldReconnect && this.query) {
-        console.log(`[YouTube] Reintentando conexión con ${this.query}...`);
-        this.connect(this.query);
+        console.log(`[YouTube] Verificando en segundo plano si ${this.query} está en vivo...`);
+        this.connect(this.query, isBackgroundRetry);
       }
-    }, 10000);
+    }, delay);
   }
 
   setStatus(status, error = null) {
+    if (this.status === status && this.lastError === error) return;
     this.status = status;
+    this.lastError = error;
     this.emit('status', { platform: 'youtube', status, error });
   }
 }

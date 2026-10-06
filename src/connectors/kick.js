@@ -15,6 +15,7 @@ class KickConnector extends EventEmitter {
     this.pingTimer = null;
     this.chatroomCache = {};
     this.avatarCache = new Map();
+    this.lastError = null;
   }
 
   cleanChannelInput(raw) {
@@ -166,6 +167,18 @@ class KickConnector extends EventEmitter {
 
   handlePusherMessage(payload) {
     const event = payload.event;
+
+    // Responder al ping del servidor de Pusher para evitar desconexión cada 120 segundos
+    if (event === 'pusher:ping') {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
+      }
+      return;
+    }
+
+    if (event === 'pusher:pong') {
+      return;
+    }
 
     if (event === 'App\\Events\\ChatMessageEvent') {
       const chatData = typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data;
@@ -345,7 +358,9 @@ class KickConnector extends EventEmitter {
   }
 
   setStatus(status, error = null) {
+    if (this.status === status && this.lastError === error) return;
     this.status = status;
+    this.lastError = error;
     this.emit('status', { platform: 'kick', status, error });
   }
 }

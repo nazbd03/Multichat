@@ -10,6 +10,7 @@ class TwitchConnector extends EventEmitter {
     this.reconnectTimer = null;
     this.shouldReconnect = false;
     this.avatarCache = new Map();
+    this.lastError = null;
   }
 
   connect(channel) {
@@ -79,7 +80,9 @@ class TwitchConnector extends EventEmitter {
   }
 
   setStatus(status, error = null) {
+    if (this.status === status && this.lastError === error) return;
     this.status = status;
+    this.lastError = error;
     this.emit('status', { platform: 'twitch', status, error });
   }
 

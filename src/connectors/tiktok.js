@@ -9,15 +9,18 @@ class TikTokConnector extends EventEmitter {
     this.status = 'disconnected';
     this.shouldReconnect = false;
     this.reconnectTimer = null;
+    this.lastError = null;
   }
 
-  async connect(username) {
+  async connect(username, isBackgroundRetry = false) {
     if (!username) return;
-    this.disconnect();
+    this.disconnect(false);
 
     this.username = username.trim().replace(/^@/, '');
     this.shouldReconnect = true;
-    this.setStatus('connecting');
+    if (!isBackgroundRetry) {
+      this.setStatus('connecting');
+    }
 
     try {
       this.connection = new TikTokLiveConnection(this.username, {
@@ -40,9 +43,9 @@ class TikTokConnector extends EventEmitter {
 
       this.connection.on('streamEnd', () => {
         console.log(`[TikTok] Stream finalizado para @${this.username}`);
-        this.setStatus('offline', 'Canal no está en vivo');
+        this.setStatus('offline', 'No en vivo (inicia directo)');
         if (this.shouldReconnect) {
-          this.scheduleReconnect(15000);
+          this.scheduleReconnect(35000, true);
         }
       });
 
@@ -51,7 +54,7 @@ class TikTokConnector extends EventEmitter {
         if (this.status !== 'disconnected') {
           this.setStatus('disconnected');
           if (this.shouldReconnect) {
-            this.scheduleReconnect(10000);
+            this.scheduleReconnect(15000, false);
           }
         }
       });
@@ -63,7 +66,7 @@ class TikTokConnector extends EventEmitter {
         console.error(`[TikTok] Error en @${this.username}:`, errInfo.message);
         this.setStatus(errInfo.status, errInfo.message);
         if (this.shouldReconnect) {
-          this.scheduleReconnect(errInfo.delay);
+          this.scheduleReconnect(errInfo.delay, errInfo.status === 'offline');
         }
       });
 
@@ -72,10 +75,14 @@ class TikTokConnector extends EventEmitter {
       this.setStatus('connected');
     } catch (err) {
       const errInfo = this.formatError(err);
-      console.log(`[TikTok] Estado para @${this.username}: ${errInfo.message}`);
+      if (errInfo.status === 'offline') {
+        console.log(`[TikTok] @${this.username} no está en vivo actualmente. Verificando en segundo plano...`);
+      } else {
+        console.log(`[TikTok] Estado para @${this.username}: ${errInfo.message}`);
+      }
       this.setStatus(errInfo.status, errInfo.message);
       if (this.shouldReconnect) {
-        this.scheduleReconnect(errInfo.delay);
+        this.scheduleReconnect(errInfo.delay, errInfo.status === 'offline');
       }
     }
   }
@@ -242,8 +249,10 @@ class TikTokConnector extends EventEmitter {
     }
   }
 
-  disconnect() {
-    this.shouldReconnect = false;
+  disconnect(resetReconnect = true) {
+    if (resetReconnect) {
+      this.shouldReconnect = false;
+    }
     clearTimeout(this.reconnectTimer);
     if (this.connection) {
       try {
@@ -251,7 +260,9 @@ class TikTokConnector extends EventEmitter {
       } catch (e) {}
       this.connection = null;
     }
-    this.setStatus('disconnected');
+    if (resetReconnect) {
+      this.setStatus('disconnected');
+    }
   }
 
   formatError(err) {
@@ -268,7 +279,7 @@ class TikTokConnector extends EventEmitter {
       return {
         status: 'offline',
         message: 'No en vivo (inicia directo)',
-        delay: 15000
+        delay: 35000
       };
     }
     if (raw.includes('User not found') || raw.includes('user not found') || raw.includes('could not be found')) {
@@ -289,28 +300,32 @@ class TikTokConnector extends EventEmitter {
       return {
         status: 'error',
         message: 'Error de firma de TikTok',
-        delay: 15000
+        delay: 20000
       };
     }
     return {
       status: 'error',
       message: raw.length > 25 ? raw.slice(0, 22) + '...' : raw || 'Error de conexión',
-      delay: 15000
+      delay: 20000
     };
   }
 
-  scheduleReconnect(delay = 10000) {
+  scheduleReconnect(delay = 10000, isBackgroundRetry = false) {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       if (this.shouldReconnect && this.username) {
-        console.log(`[TikTok] Reintentando conexión con @${this.username}...`);
-        this.connect(this.username);
+        if (!isBackgroundRetry) {
+          console.log(`[TikTok] Reintentando conexión con @${this.username}...`);
+        }
+        this.connect(this.username, isBackgroundRetry);
       }
     }, delay);
   }
 
   setStatus(status, error = null) {
+    if (this.status === status && this.lastError === error) return;
     this.status = status;
+    this.lastError = error;
     this.emit('status', { platform: 'tiktok', status, error });
   }
 }
