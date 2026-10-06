@@ -1,6 +1,6 @@
 {
   "port": 3333,
-  "appTheme": "minecraft",
+  "appTheme": "dark",
   "platforms": {
     "twitch": {
       "enabled": true,
@@ -39,7 +39,7 @@
     "ttsEnabled": true,
     "ttsVolume": 50,
     "ttsSpeed": 1,
-    "ttsLang": "google_ru",
+    "ttsLang": "enrique",
     "ttsReadUsername": true,
     "ttsTranslate": false,
     "ttsCommandOnly": false,

@@ -34,7 +34,8 @@ app.get('/overlay', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'overlay', 'index.html'));
 });
 
-const { checkForUpdates, CURRENT_VERSION } = require('./updater');
+const os = require('os');
+const { checkForUpdates, downloadFile, applyInPlaceUpdate, CURRENT_VERSION } = require('./updater');
 
 app.get('/api/config', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -45,6 +46,35 @@ app.get('/api/updates/check', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const result = await checkForUpdates();
   res.json(result);
+});
+
+app.post('/api/updates/download-and-apply', async (req, res) => {
+  try {
+    const update = await checkForUpdates();
+    if (!update.updateAvailable || !update.downloadUrl) {
+      return res.status(400).json({ ok: false, error: 'No hay actualización disponible para descargar.' });
+    }
+
+    if (!update.hasExeAsset) {
+      return res.json({ ok: false, requiresManualDownload: true, url: update.htmlUrl });
+    }
+
+    const tempExe = path.join(os.tmpdir(), `multichat_update_${Date.now()}.exe`);
+    await downloadFile(update.downloadUrl, tempExe);
+
+    const targetExe = process.env.PORTABLE_EXECUTABLE_FILE
+      || (require('fs').existsSync(path.join(__dirname, '..', 'Multistream Chat.exe')) ? path.join(__dirname, '..', 'Multistream Chat.exe') : process.execPath);
+
+    applyInPlaceUpdate(tempExe, targetExe);
+
+    res.json({ ok: true, message: 'Actualización descargada. Reiniciando la app en 2 segundos...' });
+
+    setTimeout(() => {
+      appEvents.emit('quit-app');
+    }, 1500);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // Desktop App Lifecycle endpoints (Second Plane / Tray / Background)

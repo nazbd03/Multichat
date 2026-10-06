@@ -884,17 +884,60 @@
     });
   }
 
+  let latestUpdateData = null;
+
+  if (btnDownloadUpdate) {
+    btnDownloadUpdate.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (!latestUpdateData) return;
+
+      if (!latestUpdateData.hasExeAsset) {
+        window.open(latestUpdateData.htmlUrl, '_blank');
+        return;
+      }
+
+      btnDownloadUpdate.textContent = '⏳ Descargando actualización...';
+      btnDownloadUpdate.style.pointerEvents = 'none';
+      showToast('Descargando actualización... La app se reiniciará sola.');
+
+      try {
+        const res = await fetch('/api/updates/download-and-apply', { method: 'POST' });
+        const resData = await res.json();
+        if (resData.ok) {
+          showToast(resData.message || 'Actualización lista. Reiniciando...');
+          btnDownloadUpdate.textContent = '🚀 Reiniciando app...';
+        } else if (resData.requiresManualDownload) {
+          window.open(resData.url, '_blank');
+          btnDownloadUpdate.textContent = 'Actualizar y Reiniciar';
+          btnDownloadUpdate.style.pointerEvents = 'auto';
+        } else {
+          showToast('Error: ' + (resData.error || 'No se pudo aplicar'));
+          btnDownloadUpdate.textContent = 'Actualizar y Reiniciar';
+          btnDownloadUpdate.style.pointerEvents = 'auto';
+        }
+      } catch (err) {
+        showToast('Error de conexión al descargar');
+        btnDownloadUpdate.textContent = 'Actualizar y Reiniciar';
+        btnDownloadUpdate.style.pointerEvents = 'auto';
+      }
+    });
+  }
+
   async function checkGithubUpdates(manual = false) {
     try {
       if (manual) showToast('Buscando actualizaciones...');
       const res = await fetch('/api/updates/check');
       const data = await res.json();
+      latestUpdateData = data;
 
       if (data.updateAvailable) {
         if (updateBanner) {
           if (updateTitle) updateTitle.textContent = `🚀 ¡Nueva versión disponible: ${data.latestVersion}!`;
-          if (updateDesc) updateDesc.textContent = `Tienes instalada la v${data.currentVersion}. Novedades: ${data.releaseName || data.latestVersion}`;
-          if (btnDownloadUpdate) btnDownloadUpdate.href = data.downloadUrl || data.htmlUrl;
+          if (updateDesc) updateDesc.textContent = `Tienes instalada la v${data.currentVersion}. Se actualizará este mismo ejecutable sin instaladores ni duplicados.`;
+          if (btnDownloadUpdate) {
+            btnDownloadUpdate.textContent = data.hasExeAsset ? 'Actualizar y Reiniciar' : 'Ver en GitHub';
+            btnDownloadUpdate.style.pointerEvents = 'auto';
+          }
           updateBanner.style.display = 'block';
         }
         if (manual) showToast(`¡Nueva versión ${data.latestVersion} disponible!`);

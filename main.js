@@ -2,7 +2,8 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, shell, clipboard, dialog } 
 const path = require('path');
 const fs = require('fs');
 const { startServer, appEvents } = require('./src/server');
-const { checkForUpdates, CURRENT_VERSION } = require('./src/updater');
+const os = require('os');
+const { checkForUpdates, downloadFile, applyInPlaceUpdate, CURRENT_VERSION } = require('./src/updater');
 
 // Prevent background timer throttling so OBS WebSocket and alerts are always instant
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -21,6 +22,17 @@ let tray = null;
 let serverInstance = null;
 const PORT = 3333;
 const isHiddenLaunch = process.argv.includes('--hidden') || process.argv.includes('--background') || process.argv.includes('-h');
+
+function getTargetExePath() {
+  if (process.env.PORTABLE_EXECUTABLE_FILE && fs.existsSync(process.env.PORTABLE_EXECUTABLE_FILE)) {
+    return process.env.PORTABLE_EXECUTABLE_FILE;
+  }
+  const rootExe = path.join(__dirname, 'Multistream Chat.exe');
+  if (fs.existsSync(rootExe)) {
+    return rootExe;
+  }
+  return app.getPath('exe');
+}
 
 function showTrayNotification(title, content) {
   if (!tray) return;
@@ -64,15 +76,30 @@ async function promptUpdateCheck(isManual = false) {
       if (mainWindow && !mainWindow.isDestroyed()) {
         const choice = await dialog.showMessageBox(mainWindow, {
           type: 'info',
-          title: '🚀 Nueva Actualización Disponible',
+          title: '🚀 Nueva Versión Disponible',
           message: `¡Hay una nueva versión disponible! (${updateInfo.latestVersion})`,
-          detail: `Versión instalada: v${updateInfo.currentVersion}\nNueva versión: ${updateInfo.latestVersion}\n\nNovedades:\n${updateInfo.releaseNotes}\n\n¿Deseas descargar la actualización ahora?`,
-          buttons: ['Descargar Actualización', 'Recordar más tarde'],
+          detail: `Versión actual: v${updateInfo.currentVersion}\nNueva versión: ${updateInfo.latestVersion}\n\nNovedades:\n${updateInfo.releaseNotes}\n\n¿Deseas actualizar ahora? La app descargará la actualización, reemplazará este mismo archivo y se reiniciará automáticamente (sin instaladores ni ejecutables duplicados).`,
+          buttons: ['Actualizar y Reiniciar Ahora', 'Más tarde'],
           defaultId: 0,
           cancelId: 1
         });
+
         if (choice.response === 0) {
-          shell.openExternal(updateInfo.downloadUrl);
+          if (updateInfo.hasExeAsset) {
+            showTrayNotification('Multichat', `Descargando versión ${updateInfo.latestVersion}...`);
+            const tempExe = path.join(os.tmpdir(), `multichat_update_${Date.now()}.exe`);
+            try {
+              await downloadFile(updateInfo.downloadUrl, tempExe);
+              const targetExe = getTargetExePath();
+              applyInPlaceUpdate(tempExe, targetExe);
+              app.isQuitting = true;
+              app.quit();
+            } catch (err) {
+              dialog.showErrorBox('Error al Actualizar', 'No se pudo descargar la actualización: ' + err.message);
+            }
+          } else {
+            shell.openExternal(updateInfo.htmlUrl);
+          }
         }
       }
     } else if (isManual) {
