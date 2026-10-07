@@ -277,8 +277,7 @@
       if (isDuplicateFlood(clean)) return;
     } else {
       clean = text
-        .replace(/https?:\/\/\S+/gi, '')
-        .replace(/[^\p{L}\p{N}\s,!?¿¡]/gu, '')
+        .replace(/(?:https?:\/\/|www\.)\S+/gi, '')
         .trim();
       if (!clean) return;
     }
@@ -297,7 +296,8 @@
 
     const voice = currentConfig.ttsLang || 'es_mx_002';
     const translateParam = currentConfig.ttsTranslate ? '&translate=1' : '';
-    const url = `/api/tts?voice=${encodeURIComponent(voice)}${translateParam}&text=${encodeURIComponent(phrase.slice(0, 190))}`;
+    const antiSpamParam = currentConfig.ttsAntiSpam !== false ? '&antiSpam=1' : '&antiSpam=0';
+    const url = `/api/tts?voice=${encodeURIComponent(voice)}${translateParam}${antiSpamParam}&text=${encodeURIComponent(phrase.slice(0, 190))}`;
 
     ttsQueue.push({ url, text: phrase });
     processNextTts();

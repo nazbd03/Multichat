@@ -244,7 +244,15 @@ function sanitizeTtsNumbers(raw) {
 // TTS Speech Audio Endpoint with High-Definition Streamer Voices & Accents
 app.get('/api/tts', async (req, res) => {
   try {
-    const rawText = sanitizeTtsNumbers((req.query.text || '').toString().slice(0, 250).trim());
+    const isAntiSpam = req.query.antiSpam === '0' || req.query.antiSpam === 'false'
+      ? false
+      : (config.overlay && config.overlay.ttsAntiSpam === false ? false : true);
+
+    const rawText = (isAntiSpam
+      ? sanitizeTtsNumbers((req.query.text || '').toString())
+      : (req.query.text || '').toString()
+    ).slice(0, 250).trim();
+
     let voice = (req.query.voice || req.query.lang || 'es_mx_002').toString().trim();
     const shouldTranslate = req.query.translate === '1' || req.query.translate === 'true';
 
