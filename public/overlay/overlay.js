@@ -195,12 +195,12 @@
       return match.replace(/[.,]/g, '');
     });
 
-    // b) Limitar cada número individual a un valor máximo de 10 millones (10000000)
+    // b) Lectura hasta 10 millones (10,000,000). Si sobrepasa ese tope, no se lee (se omite)
     text = text.replace(/\b\d+\b/g, (match) => {
-      if (match.length > 8) return '10000000';
+      if (match.length > 8) return '';
       const val = parseInt(match, 10);
       if (isNaN(val)) return match;
-      if (val > 10000000) return '10000000';
+      if (val > 10000000) return '';
       return String(val);
     });
 

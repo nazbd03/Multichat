@@ -213,12 +213,12 @@ function sanitizeTtsNumbers(raw) {
   let str = raw;
   // 1. Normalize thousand separators (e.g. "10.000.000" or "10,000,000" -> 10000000)
   str = str.replace(/\b\d{1,3}(?:[.,]\d{3})+\b/g, m => m.replace(/[.,]/g, ''));
-  // 2. Cap individual numbers up to 10,000,000 (10 millones)
+  // 2. Read numbers up to 10,000,000. If exceeding 10 million, do not read it (omit completely)
   str = str.replace(/\b\d+\b/g, m => {
-    if (m.length > 8) return '10000000';
+    if (m.length > 8) return '';
     const val = parseInt(m, 10);
     if (isNaN(val)) return m;
-    if (val > 10000000) return '10000000';
+    if (val > 10000000) return '';
     return String(val);
   });
   // 3. Reduce lists/sequences of spaced numbers
@@ -238,7 +238,7 @@ function sanitizeTtsNumbers(raw) {
     count += m.length;
     return m;
   });
-  return str.trim();
+  return str.replace(/\s{2,}/g, ' ').trim();
 }
 
 // TTS Speech Audio Endpoint with High-Definition Streamer Voices & Accents
