@@ -383,6 +383,32 @@ html, body {
   }
 }
 
+/* Persona 5 Comic Cut Entrance (All-Out Attack Slash) */
+.anim-p5-slash {
+  animation: p5SlashIn 0.45s cubic-bezier(0.15, 0.85, 0.35, 1.2) forwards;
+  transform-origin: center left;
+}
+@keyframes p5SlashIn {
+  0% {
+    opacity: 0;
+    transform: perspective(600px) rotate(-12deg) skewX(-20deg) scale(0.6) translateX(-90px);
+    filter: brightness(2.5) contrast(1.5);
+  }
+  60% {
+    opacity: 1;
+    transform: perspective(600px) rotate(2deg) skewX(2deg) scale(1.05) translateX(8px);
+    filter: brightness(1.2);
+  }
+  80% {
+    transform: perspective(600px) rotate(-1.5deg) skewX(-7deg) scale(0.98) translateX(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotate(-0.8deg) skewX(-5deg) scale(1) translateX(0);
+    filter: brightness(1);
+  }
+}
+
 /* =========================================
    EXIT ANIMATIONS (Animaciones de Salida)
    ========================================= */
@@ -589,6 +615,32 @@ html, body {
   100% {
     opacity: 0;
     transform: scale(1.3);
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* 9. Persona 5 Comic Slash Exit */
+.chat-message.exit-p5-slash {
+  animation: p5SlashOut 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards !important;
+  transform-origin: center right;
+}
+@keyframes p5SlashOut {
+  0% {
+    opacity: 1;
+    transform: perspective(600px) rotate(-0.8deg) skewX(-5deg) scale(1);
+    max-height: 250px;
+  }
+  40% {
+    opacity: 0.9;
+    transform: perspective(600px) rotate(4deg) skewX(8deg) scale(1.08) translateX(-15px);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(600px) rotate(-20deg) skewX(-25deg) scale(0.4) translateX(120px);
     max-height: 0;
     margin-top: 0;
     margin-bottom: 0;
@@ -910,6 +962,197 @@ body.theme-blood-crimson .chat-avatar-container,
 body.theme-crimson-demon .chat-avatar-container {
   border: 2px solid #ff0033;
   box-shadow: 0 0 10px rgba(255, 0, 51, 0.7);
+}
+
+/* 14.2 Theme: Persona 5 Royal (Phantom Thieves / Manga Cómic Rojo & Negro) */
+body.theme-persona-5,
+body.theme-persona_5 {
+  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
+  --p5-red: #e60012;
+  --p5-dark: #0e0e13;
+  --p5-yellow: #ffee00;
+}
+
+body.theme-persona-5 .chat-message,
+body.theme-persona_5 .chat-message {
+  position: relative;
+  background: var(--p5-dark) !important;
+  border-radius: 0px !important;
+  border: 3.5px solid #000000 !important;
+  outline: 3px solid var(--p5-red) !important;
+  outline-offset: 2.5px;
+  box-shadow: 
+    5px 5px 0px #000000, 
+    10px 10px 0px var(--p5-red), 
+    15px 15px 22px rgba(0, 0, 0, 0.9) !important;
+  transform: skewX(-5deg) rotate(-0.8deg);
+  margin-left: 8px;
+  margin-right: 8px;
+  overflow: visible;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Comic / Manga Halftone accent bar on the left */
+body.theme-persona-5 .chat-message::after,
+body.theme-persona_5 .chat-message::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--p5-red),
+    var(--p5-red) 5px,
+    #000000 5px,
+    #000000 10px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Top-right Phantom Star badge */
+body.theme-persona-5 .chat-message::before,
+body.theme-persona_5 .chat-message::before {
+  content: '★ P5R';
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  background: var(--p5-red);
+  color: #ffffff;
+  font-family: 'Cinzel Decorative', 'Bungee', sans-serif !important;
+  font-size: 0.7em;
+  font-weight: 900;
+  padding: 1px 7px;
+  border: 2px solid #000000;
+  transform: rotate(4deg) skewX(-8deg);
+  box-shadow: 2.5px 2.5px 0px #000000;
+  letter-spacing: 1.5px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Counter-skew content so text and badges are upright, crisp and ultra-legible */
+body.theme-persona-5 .chat-content,
+body.theme-persona_5 .chat-content {
+  transform: skewX(5deg);
+}
+
+/* Persona 5 Avatar: Slanted frame with red & black comic drop shadow */
+body.theme-persona-5 .chat-avatar-container,
+body.theme-persona_5 .chat-avatar-container {
+  border-radius: 0px !important;
+  transform: rotate(3deg) skewX(-4deg);
+  border: 3px solid #000000 !important;
+  box-shadow: 3px 3px 0px var(--p5-red), 5px 5px 0px #000000 !important;
+  background: var(--p5-red);
+  width: 42px;
+  height: 42px;
+}
+
+body.theme-persona-5 .chat-avatar,
+body.theme-persona_5 .chat-avatar {
+  border-radius: 0px !important;
+}
+
+body.theme-persona-5 .chat-avatar-fallback,
+body.theme-persona_5 .chat-avatar-fallback {
+  border-radius: 0px !important;
+  font-family: 'Cinzel Decorative', 'Bungee', sans-serif;
+  font-weight: 900;
+}
+
+/* Persona 5 Username: Iconic "Ransom Note" white polygon badge with solid black text */
+body.theme-persona-5 .chat-username,
+body.theme-persona_5 .chat-username {
+  display: inline-block;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
+  font-weight: 900 !important;
+  font-size: 0.98em;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 2px 10px;
+  transform: rotate(-2deg) skewX(-7deg);
+  border: 2px solid #000000;
+  box-shadow: 3px 3px 0px var(--p5-red);
+  text-shadow: none !important;
+  line-height: 1.25;
+}
+
+/* Platform Badges: Sharp comic manga cut */
+body.theme-persona-5 .platform-badge,
+body.theme-persona_5 .platform-badge {
+  border-radius: 0px !important;
+  transform: skewX(-6deg) rotate(1deg);
+  border: 1.5px solid #000000;
+  box-shadow: 2px 2px 0px #000000;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+body.theme-persona-5 .platform-badge.twitch,
+body.theme-persona_5 .platform-badge.twitch {
+  background: #6441a5;
+  color: #fff;
+}
+body.theme-persona-5 .platform-badge.youtube,
+body.theme-persona_5 .platform-badge.youtube {
+  background: var(--p5-red);
+  color: #fff;
+}
+body.theme-persona-5 .platform-badge.kick,
+body.theme-persona_5 .platform-badge.kick {
+  background: #53fc18;
+  color: #000;
+}
+body.theme-persona-5 .platform-badge.tiktok,
+body.theme-persona_5 .platform-badge.tiktok {
+  background: #ffffff;
+  color: #000;
+  border-color: #000;
+}
+
+/* User Badges (Mod, Sub, etc.) */
+body.theme-persona-5 .user-badge,
+body.theme-persona_5 .user-badge {
+  border-radius: 0px !important;
+  transform: skewX(-6deg);
+  border: 1.5px solid #000000;
+  font-weight: 900;
+  box-shadow: 1.5px 1.5px 0px #000000;
+}
+
+/* Message Text: Sharp, high-contrast typography with comic stroke shadow */
+body.theme-persona-5 .chat-body,
+body.theme-persona_5 .chat-body {
+  color: #ffffff !important;
+  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
+  font-weight: 700;
+  font-size: 1.05em;
+  letter-spacing: 0.4px;
+  line-height: 1.4;
+  margin-top: 4px;
+  text-shadow: 
+    2px 2px 0px #000000, 
+    -1px -1px 0px #000000, 
+    1px -1px 0px #000000, 
+    -1px 1px 0px #000000,
+    0px 2px 0px #000000;
+}
+
+/* Superchat / Special event badge */
+body.theme-persona-5 .chat-special-badge,
+body.theme-persona_5 .chat-special-badge {
+  border-radius: 0px !important;
+  background: var(--p5-yellow) !important;
+  color: #000000 !important;
+  font-weight: 900 !important;
+  border: 2px solid #000000 !important;
+  transform: rotate(-1deg) skewX(-6deg);
+  box-shadow: 3px 3px 0px var(--p5-red);
 }
 
 /* 15. Theme: Minecraft Bloque de Tierra y Pasto (Grass & Dirt Block Oficial) */

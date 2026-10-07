@@ -547,7 +547,7 @@
     if (!element || element.dataset.exiting === 'true') return;
     element.dataset.exiting = 'true';
     element.style.animation = 'none';
-    element.classList.remove('anim-slide-left', 'anim-slide-up', 'anim-pop-in', 'anim-bounce-in', 'anim-flip-3d', 'anim-fade');
+    element.classList.remove('anim-slide-left', 'anim-slide-up', 'anim-pop-in', 'anim-bounce-in', 'anim-flip-3d', 'anim-p5-slash', 'anim-fade');
     void element.offsetWidth;
     const exitAnim = currentConfig.exitAnimation || 'fade-out';
     element.classList.add(`exit-${exitAnim}`);

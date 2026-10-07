@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Control - Multistream Chat Overlay</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel:wght@700&family=Fredoka:wght@600&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&family=Press+Start+2P&family=Rajdhani:wght@600;700&family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@700&family=Fredoka:wght@600&family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&family=Press+Start+2P&family=Rajdhani:wght@600;700&family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
   <link rel="icon" type="image/x-icon" href="app.ico">
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="stylesheet" href="admin.css">
@@ -237,6 +237,7 @@
               <label for="setting-theme">Estilo Visual / Tema:</label>
               <select id="setting-theme" class="form-control">
                 <option value="custom">🎨 Personalizado (Diseño manual de colores y bordes)</option>
+                <option value="persona_5">🎭 Persona 5 Royal (Phantom Thieves / Manga Cómic Rojo & Negro)</option>
                 <option value="minecraft">🌱 Minecraft Bloque de Tierra y Pasto (Grass & Dirt Block Oficial)</option>
                 <option value="matrix">🟢 Matrix Cyber Terminal (Hacker Digital Verde Neón)</option>
                 <option value="synthwave">🌅 Synthwave 80s (Outrun Púrpura, Magenta y Naranja Neón)</option>
@@ -406,6 +407,9 @@
                   <option value="'Rajdhani', sans-serif">🤖 Rajdhani (Futurista / Cyberpunk)</option>
                   <option value="'Orbitron', sans-serif">🛸 Orbitron (Sci-Fi / Mecha)</option>
                 </optgroup>
+                <optgroup label="🎭 Anime & JRPG">
+                  <option value="'Cinzel Decorative', cursive">🎭 Persona 5 / Phantom Thieves (Afilada & Épica)</option>
+                </optgroup>
                 <optgroup label="🎨 Streamer & Populares">
                   <option value="'Inter', sans-serif">✨ Inter (Moderna y Ultra-Limpia)</option>
                   <option value="'Poppins', sans-serif">🌟 Poppins (Geométrica Elegante)</option>
@@ -472,6 +476,7 @@
                 <option value="pop-in">Pop / Zoom Elástico</option>
                 <option value="bounce-in">Rebote Elástico (Bounce In) ✨</option>
                 <option value="flip-3d">Giro 3D Espectacular (Flip 3D) 🔥</option>
+                <option value="p5-slash">🎭 Corte Persona 5 (P5 Comic Slash) 🔥</option>
                 <option value="fade">Desvanecimiento Suave</option>
               </select>
             </div>
@@ -488,6 +493,7 @@
                 <option value="pop-out">Pop / Encoger (Zoom Out)</option>
                 <option value="flip-out-3d">Giro 3D hacia fuera (Flip Out 3D) 🔥</option>
                 <option value="zoom-dissolve">Disolver con Zoom (Zoom Dissolve) ✨</option>
+                <option value="p5-slash">🎭 Corte Persona 5 hacia fuera (P5 Slash Out) 🔥</option>
               </select>
               <button id="btn-test-animations" type="button" class="btn btn-secondary btn-sm" style="margin-top: 8px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">🎬 Probar Animación en Overlay</button>
             </div>
