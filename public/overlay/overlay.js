@@ -572,6 +572,8 @@
         element.parentNode.removeChild(element);
       }
     }, 460);
+  }
+
   function formatP5Username(name) {
     if (!name) return '';
     const safe = escapeHtml(name.trim());
