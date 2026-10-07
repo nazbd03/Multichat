@@ -482,6 +482,9 @@
 
     const previewMessage = customPreviewCard.querySelector('.preview-message-text');
     if (previewMessage) {
+      previewMessage.style.background = 'none';
+      previewMessage.style.webkitBackgroundClip = 'unset';
+      previewMessage.style.webkitTextFillColor = 'unset';
       previewMessage.style.color = textColor;
       const effect = settingTextEffect ? settingTextEffect.value : 'shadow';
       if (effect === 'shadow') {
@@ -492,6 +495,13 @@
         previewMessage.style.textShadow = `0 0 6px #fff, 0 0 14px ${c1}`;
       } else if (effect === 'retro_stroke') {
         previewMessage.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000';
+      } else if (effect === 'rainbow_rgb') {
+        previewMessage.style.background = 'linear-gradient(90deg, #ff0055, #ff7700, #ffee00, #00ff66, #00f0ff, #aa00ff, #ff0055)';
+        previewMessage.style.webkitBackgroundClip = 'text';
+        previewMessage.style.webkitTextFillColor = 'transparent';
+        previewMessage.style.textShadow = '0 2px 4px rgba(0,0,0,0.8)';
+      } else if (effect === 'glitch_text') {
+        previewMessage.style.textShadow = '-2px 0 0 #ff0055, 2px 0 0 #00f0ff, 0 2px 4px rgba(0,0,0,0.9)';
       } else {
         previewMessage.style.textShadow = 'none';
       }

@@ -64,8 +64,8 @@ const DEFAULT_CONFIG = {
     messageDirection: 'bottom-up', // bottom-up or top-down
     maxMessages: 15,
     autoHideDelay: 15, // seconds (0 to disable)
-    animation: 'slide-left', // slide-left, slide-up, pop-in, fade
-    exitAnimation: 'fade-out', // fade-out, slide-right, slide-left, slide-up, slide-down, pop-out
+    animation: 'slide-left', // slide-left, slide-up, pop-in, bounce-in, flip-3d, p5-slash, glitch-cyber, vortex-warp, fade
+    exitAnimation: 'fade-out', // fade-out, slide-right, slide-left, slide-up, slide-down, pop-out, flip-out-3d, zoom-dissolve, p5-slash, glitch-out, vortex-out
     cardOpacity: 85, // percentage
     borderRadius: 12,
     overlayScale: 100, // percentage 50% - 180%
