@@ -1,6 +1,6 @@
 {
   "name": "multichat",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Custom Multistream Chat Overlay for Twitch, YouTube, Kick, and TikTok",
   "main": "main.js",
   "scripts": {
