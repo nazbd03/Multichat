@@ -71,9 +71,9 @@ html, body {
    ========================================= */
 .chat-message {
   position: relative;
-  overflow: hidden;
   display: flex;
   align-items: flex-start;
+  flex-shrink: 0;
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--chat-border-radius);
@@ -384,6 +384,7 @@ html, body {
    ========================================= */
 .chat-message[data-exiting="true"] {
   pointer-events: none !important;
+  overflow: hidden !important;
 }
 
 /* 1. Fade Out (Desvanecer) */
@@ -671,12 +672,12 @@ body.theme-pixel_retro .user-badge {
 body.theme-neon-red-cyan .chat-message,
 body.theme-neon_red_cyan .chat-message {
   position: relative;
-  background: rgba(0, 0, 0, var(--chat-card-opacity, 0.95));
+  background: rgba(10, 10, 16, var(--chat-card-opacity, 0.85));
   border: 2.5px solid transparent;
   box-shadow: 
     0 4px 20px rgba(0, 0, 0, 0.9),
-    0 0 14px rgba(255, 18, 68, 0.45),
-    0 0 14px rgba(0, 240, 255, 0.45);
+    0 0 16px rgba(255, 18, 68, 0.55),
+    0 0 22px rgba(0, 240, 255, 0.5);
 }
 
 body.theme-neon-red-cyan .chat-message::before,
@@ -687,8 +688,8 @@ body.theme-neon_red_cyan .chat-message::before {
   border-radius: inherit;
   border: 2.5px solid transparent;
   background: 
-    linear-gradient(#000000, #000000) padding-box,
-    linear-gradient(var(--neon-angle, 0deg), #ff1244 0%, #ff1244 25%, #00f0ff 75%, #ff1244 100%) border-box;
+    linear-gradient(rgba(10, 10, 16, var(--chat-card-opacity, 0.85)), rgba(10, 10, 16, var(--chat-card-opacity, 0.85))) padding-box,
+    linear-gradient(var(--neon-angle, 0deg), #ff1244 0%, #ff1244 30%, #00f0ff 70%, #ff1244 100%) border-box;
   animation: neonRotateBorder 3s linear infinite;
   z-index: 0;
   pointer-events: none;
@@ -723,7 +724,7 @@ body.theme-neon_red_cyan .chat-avatar-container {
 /* 8. Theme: Neon Pulse Red to Cyan (Full border alternating from Red to Celeste) */
 body.theme-neon-pulse-red-cyan .chat-message,
 body.theme-neon_pulse_red_cyan .chat-message {
-  background: rgba(0, 0, 0, var(--chat-card-opacity, 0.95));
+  background: rgba(10, 10, 16, var(--chat-card-opacity, 0.85));
   position: relative;
   border: 2px solid transparent;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.9);
@@ -740,6 +741,13 @@ body.theme-neon_pulse_red_cyan .chat-message::before {
   border-color: #ff1244;
   pointer-events: none;
   animation: neonFullPulseRedCyan 3.5s ease-in-out infinite;
+  z-index: 0;
+}
+
+body.theme-neon-pulse-red-cyan .chat-message > *,
+body.theme-neon_pulse_red_cyan .chat-message > * {
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes neonFullPulseRedCyan {
