@@ -441,6 +441,20 @@
     if (msg.type === 'superchat') card.classList.add('is-superchat');
     if (msg.type === 'subscription') card.classList.add('is-sub');
 
+    // Authentic Persona 5 dialogue box frame
+    const bgBox = document.createElement('div');
+    bgBox.className = 'p5-box-bg';
+    card.appendChild(bgBox);
+
+    const userName = msg.user.displayName || msg.user.name || 'User';
+    if (userName.length <= 9) {
+      card.classList.add('p5-size-small');
+    } else if (userName.length <= 16) {
+      card.classList.add('p5-size-medium');
+    } else {
+      card.classList.add('p5-size-large');
+    }
+
     // 1. Avatar
     if (currentConfig.showAvatar) {
       const avatarWrap = document.createElement('div');
@@ -450,8 +464,6 @@
       if (avatarUrl.startsWith('//')) {
         avatarUrl = 'https:' + avatarUrl;
       }
-
-      const userName = msg.user.displayName || msg.user.name || 'User';
 
       if (avatarUrl && avatarUrl.startsWith('http')) {
         const img = document.createElement('img');
@@ -502,7 +514,11 @@
     const userSpan = document.createElement('span');
     userSpan.className = 'chat-username';
     userSpan.style.color = msg.user.color || '#38bdf8';
-    userSpan.textContent = msg.user.displayName || msg.user.name;
+    if (currentConfig.theme === 'persona_5' || currentConfig.theme === 'persona-5') {
+      userSpan.innerHTML = formatP5Username(userName);
+    } else {
+      userSpan.textContent = userName;
+    }
     header.appendChild(userSpan);
 
     // Timestamp
@@ -556,6 +572,16 @@
         element.parentNode.removeChild(element);
       }
     }, 460);
+  function formatP5Username(name) {
+    if (!name) return '';
+    const safe = escapeHtml(name.trim());
+    if (safe.length <= 1) return safe;
+    // Choose index 1 or 2 for the iconic ransom note tile
+    const idx = Math.min(Math.floor(safe.length / 2), 2);
+    const before = safe.slice(0, idx);
+    const char = safe.slice(idx, idx + 1);
+    const after = safe.slice(idx + 1);
+    return `${before}<span class="ransom-tile">${char}</span>${after}`;
   }
 
   function createMonogram(name, color) {
