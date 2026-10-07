@@ -180,14 +180,15 @@
     text = text.replace(/(?:https?:\/\/|www\.)\S+/gi, '');
     text = text.replace(/\b[a-zA-Z0-9-]+\.(?:com|org|net|io|gg|tv|me|xyz|live|link)\S*/gi, '');
 
-    // 2. Reduce excessive laughing spam: jajajajaja -> jaja, hahahahaha -> haha, xdxdxdxd -> xdxd
-    text = text.replace(/(ja|je|ji|ha|he|hi|xd|lol){3,}/gi, '$1$1');
+    // 2. Reduce excessive laughing spam: permite hasta 7 repeticiones (ej: "JAJAJAJAJAJAJA")
+    text = text.replace(/(ja|je|ji|ha|he|hi){8,}/gi, (m, g) => g.repeat(7));
+    text = text.replace(/(xd|lol){6,}/gi, (m, g) => g.repeat(5));
 
     // 3. Reduce character spam for non-digits: e.g. "WWWWWWWWWW" -> "WW", "aaaaaa" -> "aa"
     text = text.replace(/([^\d])\1{2,}/gu, '$1$1');
 
-    // 4. Reduce repeated consecutive words: e.g. "hola hola hola hola hola" -> "hola hola"
-    text = text.replace(/\b(\p{L}+)(?:\s+\1){2,}\b/giu, '$1 $1');
+    // 4. Reduce repeated consecutive words (except laughing): e.g. "hola hola hola hola hola" -> "hola hola"
+    text = text.replace(/\b(?!ja\b|je\b|ji\b|ha\b|he\b|hi\b)(\p{L}+)(?:\s+\1){2,}\b/giu, '$1 $1');
 
     // 5. Anti-Spam de números: lectura completa y limpia hasta 10 millones (10,000,000)
     // a) Normalizar separadores de miles (ej: "10.000.000" o "10,000,000" -> 10000000)
