@@ -18,6 +18,8 @@
     exitAnimation: 'fade-out',
     cardOpacity: 85,
     borderRadius: 12,
+    overlayScale: 100,
+    cardWidth: 850,
     showPlatformBadge: true,
     showAvatar: true,
     showUserBadges: true,
@@ -409,6 +411,16 @@
     root.style.setProperty('--chat-font-size', `${currentConfig.fontSize || 16}px`);
     root.style.setProperty('--chat-card-opacity', `${(currentConfig.cardOpacity ?? 85) / 100}`);
     root.style.setProperty('--chat-border-radius', `${currentConfig.borderRadius ?? 12}px`);
+
+    const scale = (currentConfig.overlayScale ?? 100) / 100;
+    root.style.setProperty('--chat-scale', `${scale}`);
+
+    const cardWidth = currentConfig.cardWidth ?? 850;
+    if (cardWidth > 0 && cardWidth < 850) {
+      root.style.setProperty('--chat-card-width', `${cardWidth}px`);
+    } else {
+      root.style.setProperty('--chat-card-width', '100%');
+    }
 
     // Direction
     if (currentConfig.messageDirection === 'top-down') {

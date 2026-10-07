@@ -14,6 +14,8 @@
   --chat-text-color: #f1f5f9;
   --chat-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   --chat-spacing: 10px;
+  --chat-scale: 1;
+  --chat-card-width: 100%;
 
   /* Brand Colors */
   --color-twitch: #9146FF;
@@ -82,7 +84,9 @@ html, body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--chat-border-color);
   box-shadow: var(--chat-shadow);
-  max-width: 100%;
+  max-width: var(--chat-card-width, 100%);
+  width: var(--chat-card-width, 100%);
+  zoom: var(--chat-scale, 1);
   word-break: break-word;
   will-change: transform, opacity;
 }

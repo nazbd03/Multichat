@@ -68,6 +68,8 @@ const DEFAULT_CONFIG = {
     exitAnimation: 'fade-out', // fade-out, slide-right, slide-left, slide-up, slide-down, pop-out
     cardOpacity: 85, // percentage
     borderRadius: 12,
+    overlayScale: 100, // percentage 50% - 180%
+    cardWidth: 850, // pixel width (850 = 100% full width)
     showPlatformBadge: true,
     showAvatar: true,
     showUserBadges: true,

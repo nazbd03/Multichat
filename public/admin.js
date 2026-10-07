@@ -45,6 +45,10 @@
   const valCardOpacity = document.getElementById('val-card-opacity');
   const settingBorderRadius = document.getElementById('setting-border-radius');
   const valBorderRadius = document.getElementById('val-border-radius');
+  const settingOverlayScale = document.getElementById('setting-overlay-scale');
+  const valOverlayScale = document.getElementById('val-overlay-scale');
+  const settingCardWidth = document.getElementById('setting-card-width');
+  const valCardWidth = document.getElementById('val-card-width');
   const settingAnimation = document.getElementById('setting-animation');
   const settingExitAnimation = document.getElementById('setting-exit-animation');
   const settingAutohide = document.getElementById('setting-autohide');
@@ -202,6 +206,23 @@
     valBorderRadius.textContent = `${settingBorderRadius.value}px`;
     liveUpdateConfig();
   });
+
+  if (settingOverlayScale) {
+    settingOverlayScale.addEventListener('input', () => {
+      valOverlayScale.textContent = `${settingOverlayScale.value}%`;
+      updateCustomPreview();
+      liveUpdateConfig();
+    });
+  }
+
+  if (settingCardWidth) {
+    settingCardWidth.addEventListener('input', () => {
+      const v = parseInt(settingCardWidth.value, 10);
+      valCardWidth.textContent = (v >= 850 || v <= 0) ? '100% (Completo)' : `${v}px`;
+      updateCustomPreview();
+      liveUpdateConfig();
+    });
+  }
 
   settingMaxMessages.addEventListener('input', () => {
     valMaxMessages.textContent = settingMaxMessages.value;
@@ -379,6 +400,8 @@
     const radius = settingBorderRadius ? settingBorderRadius.value : '12';
 
     customPreviewCard.style.borderRadius = `${radius}px`;
+    const scale = settingOverlayScale ? (parseInt(settingOverlayScale.value, 10) / 100) : 1;
+    customPreviewCard.style.zoom = scale;
 
     if (anim === 'rotating') {
       customPreviewCard.style.border = `${bWidth}px solid transparent`;
@@ -651,6 +674,16 @@
       settingBorderRadius.value = o.borderRadius ?? 12;
       valBorderRadius.textContent = `${settingBorderRadius.value}px`;
 
+      if (settingOverlayScale) {
+        settingOverlayScale.value = o.overlayScale ?? 100;
+        valOverlayScale.textContent = `${settingOverlayScale.value}%`;
+      }
+      if (settingCardWidth) {
+        const cw = o.cardWidth ?? 850;
+        settingCardWidth.value = cw;
+        valCardWidth.textContent = (cw >= 850 || cw <= 0) ? '100% (Completo)' : `${cw}px`;
+      }
+
       settingAnimation.value = o.animation || 'slide-left';
       if (settingExitAnimation) settingExitAnimation.value = o.exitAnimation || 'fade-out';
       settingAutohide.value = o.autoHideDelay ?? 15;
@@ -860,6 +893,8 @@
         fontSize: parseInt(settingFontSize.value, 10),
         cardOpacity: parseInt(settingCardOpacity.value, 10),
         borderRadius: parseInt(settingBorderRadius.value, 10),
+        overlayScale: settingOverlayScale ? parseInt(settingOverlayScale.value, 10) : 100,
+        cardWidth: settingCardWidth ? parseInt(settingCardWidth.value, 10) : 850,
         animation: settingAnimation.value,
         exitAnimation: settingExitAnimation ? settingExitAnimation.value : 'fade-out',
         autoHideDelay: parseInt(settingAutohide.value, 10),
