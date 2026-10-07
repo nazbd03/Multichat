@@ -1,3 +1,29 @@
+/* Persona 5 Authentic Web Fonts */
+@font-face {
+  font-family: 'Persona 5 Ransom';
+  src: url('/fonts/Persona5FanRansom.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Persona 5 Hatty';
+  src: url('/fonts/p5hatty.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Persona 5 Optima';
+  src: url('/fonts/OptimaNovaLT-Black.woff2') format('woff2'),
+       url('/fonts/optimanova.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root,
 [data-app-theme="midnight"] {
   --bg-main: #0b0f19;

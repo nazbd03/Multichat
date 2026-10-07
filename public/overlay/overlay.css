@@ -4,6 +4,36 @@
   inherits: false;
 }
 
+/* Persona 5 Authentic Web Fonts */
+@font-face {
+  font-family: 'Persona 5 Ransom';
+  src: url('/fonts/Persona5FanRansom.ttf') format('truetype'),
+       url('fonts/Persona5FanRansom.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Persona 5 Hatty';
+  src: url('/fonts/p5hatty.ttf') format('truetype'),
+       url('fonts/p5hatty.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Persona 5 Optima';
+  src: url('/fonts/OptimaNovaLT-Black.woff2') format('woff2'),
+       url('/fonts/optimanova.ttf') format('truetype'),
+       url('fonts/OptimaNovaLT-Black.woff2') format('woff2'),
+       url('fonts/optimanova.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --chat-font-family: 'Inter', sans-serif;
   --chat-font-size: 16px;
@@ -385,27 +415,27 @@ html, body {
 
 /* Persona 5 Comic Cut Entrance (All-Out Attack Slash) */
 .anim-p5-slash {
-  animation: p5SlashIn 0.45s cubic-bezier(0.15, 0.85, 0.35, 1.2) forwards;
+  animation: p5SlashIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: center left;
 }
 @keyframes p5SlashIn {
   0% {
     opacity: 0;
-    transform: perspective(600px) rotate(-12deg) skewX(-20deg) scale(0.6) translateX(-90px);
-    filter: brightness(2.5) contrast(1.5);
+    transform: perspective(700px) rotate(-14deg) skewX(-28deg) scale(0.35) translateX(-180px);
+    filter: brightness(2.5) contrast(1.4);
   }
-  60% {
+  50% {
     opacity: 1;
-    transform: perspective(600px) rotate(2deg) skewX(2deg) scale(1.05) translateX(8px);
+    transform: perspective(700px) rotate(3deg) skewX(9deg) scale(1.08) translateX(12px);
     filter: brightness(1.2);
   }
-  80% {
-    transform: perspective(600px) rotate(-1.5deg) skewX(-7deg) scale(0.98) translateX(-2px);
+  75% {
+    transform: perspective(700px) rotate(-1.5deg) skewX(-4deg) scale(0.98) translateX(-3px);
   }
   100% {
     opacity: 1;
-    transform: perspective(600px) rotate(-0.8deg) skewX(-5deg) scale(1) translateX(0);
-    filter: brightness(1);
+    transform: perspective(700px) rotate(-0.6deg) skewX(-7deg) scale(1) translateX(0);
+    filter: none;
   }
 }
 
@@ -625,22 +655,23 @@ html, body {
 
 /* 9. Persona 5 Comic Slash Exit */
 .chat-message.exit-p5-slash {
-  animation: p5SlashOut 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards !important;
+  animation: p5SlashOut 0.38s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards !important;
   transform-origin: center right;
 }
 @keyframes p5SlashOut {
   0% {
     opacity: 1;
-    transform: perspective(600px) rotate(-0.8deg) skewX(-5deg) scale(1);
+    transform: perspective(700px) rotate(-0.6deg) skewX(-7deg) scale(1);
     max-height: 250px;
   }
-  40% {
-    opacity: 0.9;
-    transform: perspective(600px) rotate(4deg) skewX(8deg) scale(1.08) translateX(-15px);
+  30% {
+    opacity: 1;
+    transform: perspective(700px) rotate(4deg) skewX(10deg) scale(1.08) translateX(-18px);
+    filter: brightness(1.4);
   }
   100% {
     opacity: 0;
-    transform: perspective(600px) rotate(-20deg) skewX(-25deg) scale(0.4) translateX(120px);
+    transform: perspective(700px) rotate(-22deg) skewX(-32deg) scale(0.2) translateX(220px);
     max-height: 0;
     margin-top: 0;
     margin-bottom: 0;
@@ -967,130 +998,163 @@ body.theme-crimson-demon .chat-avatar-container {
 /* 14.2 Theme: Persona 5 Royal (Phantom Thieves / Manga Cómic Rojo & Negro) */
 body.theme-persona-5,
 body.theme-persona_5 {
-  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
+  font-family: 'Persona 5 Optima', 'Optima', 'Cinzel Decorative', 'Inter', sans-serif !important;
   --p5-red: #e60012;
-  --p5-dark: #0e0e13;
+  --p5-dark-red: #8f000b;
+  --p5-black: #08080a;
+  --p5-card-bg: #0d0d12;
   --p5-yellow: #ffee00;
+  --p5-white: #ffffff;
 }
 
 body.theme-persona-5 .chat-message,
 body.theme-persona_5 .chat-message {
   position: relative;
-  background: var(--p5-dark) !important;
+  background-color: var(--p5-card-bg) !important;
+  background-image: 
+    radial-gradient(circle, rgba(230, 0, 18, 0.28) 1.5px, transparent 1.5px),
+    linear-gradient(135deg, rgba(8, 8, 10, 0.98) 0%, rgba(18, 18, 24, 0.96) 100%) !important;
+  background-size: 10px 10px, 100% 100% !important;
   border-radius: 0px !important;
-  border: 3.5px solid #000000 !important;
+  border: 4px solid #000000 !important;
   outline: 3px solid var(--p5-red) !important;
-  outline-offset: 2.5px;
+  outline-offset: 3px;
   box-shadow: 
-    5px 5px 0px #000000, 
-    10px 10px 0px var(--p5-red), 
-    15px 15px 22px rgba(0, 0, 0, 0.9) !important;
-  transform: skewX(-5deg) rotate(-0.8deg);
-  margin-left: 8px;
-  margin-right: 8px;
+    -7px 7px 0px var(--p5-red),
+    -12px 12px 0px #000000,
+    0 16px 32px rgba(0, 0, 0, 0.9) !important;
+  transform: skewX(-7deg) rotate(-0.6deg);
+  margin-left: 14px;
+  margin-right: 12px;
+  padding: 14px 18px 14px 22px;
   overflow: visible;
   transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Comic / Manga Halftone accent bar on the left */
+/* Comic / Manga Speed-stripe Accent on Left */
 body.theme-persona-5 .chat-message::after,
 body.theme-persona_5 .chat-message::after {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 7px;
+  left: -2px;
+  top: -2px;
+  bottom: -2px;
+  width: 9px;
   background: repeating-linear-gradient(
     -45deg,
-    var(--p5-red),
-    var(--p5-red) 5px,
-    #000000 5px,
-    #000000 10px
+    var(--p5-red) 0px,
+    var(--p5-red) 6px,
+    #000000 6px,
+    #000000 12px
   );
+  border-right: 2px solid #000000;
   pointer-events: none;
   z-index: 2;
 }
 
-/* Top-right Phantom Star badge */
+/* Top-right "TAKE YOUR HEART" Phantom Ribbon Badge */
 body.theme-persona-5 .chat-message::before,
 body.theme-persona_5 .chat-message::before {
-  content: '★ P5R';
+  content: '★ TAKE YOUR HEART ★';
   position: absolute;
-  top: -12px;
+  top: -14px;
   right: 14px;
   background: var(--p5-red);
   color: #ffffff;
-  font-family: 'Cinzel Decorative', 'Bungee', sans-serif !important;
-  font-size: 0.7em;
+  font-family: 'Persona 5 Hatty', 'Cinzel Decorative', 'Impact', sans-serif !important;
+  font-size: 0.72em;
   font-weight: 900;
-  padding: 1px 7px;
-  border: 2px solid #000000;
-  transform: rotate(4deg) skewX(-8deg);
-  box-shadow: 2.5px 2.5px 0px #000000;
+  padding: 2px 9px 1px 9px;
+  border: 2.5px solid #000000;
+  transform: rotate(3deg) skewX(-9deg);
+  box-shadow: 3px 3px 0px #000000;
   letter-spacing: 1.5px;
   pointer-events: none;
   z-index: 5;
 }
 
-/* Counter-skew content so text and badges are upright, crisp and ultra-legible */
+/* Counter-skew content so text and elements are upright and comfortable to read */
 body.theme-persona-5 .chat-content,
 body.theme-persona_5 .chat-content {
-  transform: skewX(5deg);
+  transform: skewX(7deg);
 }
 
-/* Persona 5 Avatar: Slanted frame with red & black comic drop shadow */
+/* Persona 5 Avatar: Slanted frame with red & black comic drop shadow + speech spike pointer */
 body.theme-persona-5 .chat-avatar-container,
 body.theme-persona_5 .chat-avatar-container {
+  position: relative;
   border-radius: 0px !important;
-  transform: rotate(3deg) skewX(-4deg);
-  border: 3px solid #000000 !important;
-  box-shadow: 3px 3px 0px var(--p5-red), 5px 5px 0px #000000 !important;
+  transform: rotate(2deg) skewX(-5deg);
+  border: 3.5px solid #000000 !important;
+  box-shadow: -3px 3px 0px var(--p5-red), 4px 4px 0px #000000 !important;
   background: var(--p5-red);
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+}
+
+/* Comic speech spike pointing towards avatar */
+body.theme-persona-5 .chat-avatar-container::after,
+body.theme-persona_5 .chat-avatar-container::after {
+  content: '';
+  position: absolute;
+  right: -13px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--p5-red);
+  border-right: 2.5px solid #000000;
+  border-top: 2.5px solid #000000;
+  z-index: 3;
 }
 
 body.theme-persona-5 .chat-avatar,
 body.theme-persona_5 .chat-avatar {
   border-radius: 0px !important;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 body.theme-persona-5 .chat-avatar-fallback,
 body.theme-persona_5 .chat-avatar-fallback {
   border-radius: 0px !important;
-  font-family: 'Cinzel Decorative', 'Bungee', sans-serif;
+  font-family: 'Persona 5 Hatty', 'Cinzel Decorative', sans-serif;
   font-weight: 900;
+  font-size: 1.2em;
 }
 
-/* Persona 5 Username: Iconic "Ransom Note" white polygon badge with solid black text */
+/* Persona 5 Username: The Authentic "Ransom Note" Cutout Badge */
 body.theme-persona-5 .chat-username,
 body.theme-persona_5 .chat-username {
   display: inline-block;
   background: #ffffff !important;
   color: #000000 !important;
-  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
+  font-family: 'Persona 5 Ransom', 'Persona 5 Hatty', 'Cinzel Decorative', sans-serif !important;
   font-weight: 900 !important;
-  font-size: 0.98em;
+  font-size: 1.08em;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 2px 10px;
-  transform: rotate(-2deg) skewX(-7deg);
-  border: 2px solid #000000;
-  box-shadow: 3px 3px 0px var(--p5-red);
+  letter-spacing: 1.2px;
+  padding: 3px 11px 2px 10px;
+  transform: rotate(-2.5deg) skewX(-8deg);
+  border: 2.5px solid #000000;
+  box-shadow: 3.5px 3.5px 0px var(--p5-red), 6px 6px 0px #000000;
   text-shadow: none !important;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
-/* Platform Badges: Sharp comic manga cut */
+/* Platform Badges: Slanted comic manga cut */
 body.theme-persona-5 .platform-badge,
 body.theme-persona_5 .platform-badge {
   border-radius: 0px !important;
-  transform: skewX(-6deg) rotate(1deg);
-  border: 1.5px solid #000000;
-  box-shadow: 2px 2px 0px #000000;
+  transform: skewX(-7deg) rotate(1deg);
+  border: 2px solid #000000;
+  box-shadow: 2.5px 2.5px 0px #000000;
+  font-family: 'Persona 5 Hatty', sans-serif;
   font-weight: 900;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  font-size: 0.72em;
 }
 
 body.theme-persona-5 .platform-badge.twitch,
@@ -1119,28 +1183,44 @@ body.theme-persona_5 .platform-badge.tiktok {
 body.theme-persona-5 .user-badge,
 body.theme-persona_5 .user-badge {
   border-radius: 0px !important;
-  transform: skewX(-6deg);
-  border: 1.5px solid #000000;
+  transform: skewX(-7deg);
+  border: 2px solid #000000;
+  font-family: 'Persona 5 Hatty', sans-serif;
   font-weight: 900;
-  box-shadow: 1.5px 1.5px 0px #000000;
+  box-shadow: 2px 2px 0px #000000;
 }
 
-/* Message Text: Sharp, high-contrast typography with comic stroke shadow */
+/* Timestamp: Sharp retro manga font */
+body.theme-persona-5 .chat-timestamp,
+body.theme-persona_5 .chat-timestamp {
+  font-family: 'Persona 5 Hatty', monospace;
+  color: #ffffff !important;
+  background: #000000;
+  padding: 1px 6px;
+  border: 1.5px solid var(--p5-red);
+  transform: skewX(-6deg);
+  font-size: 0.72em;
+}
+
+/* Message Text: The Authentic Optima Nova Dialogue Font with Crisp Stroke Shadow */
 body.theme-persona-5 .chat-body,
 body.theme-persona_5 .chat-body {
   color: #ffffff !important;
-  font-family: 'Cinzel Decorative', 'Inter', sans-serif !important;
-  font-weight: 700;
-  font-size: 1.05em;
-  letter-spacing: 0.4px;
-  line-height: 1.4;
-  margin-top: 4px;
+  font-family: 'Persona 5 Optima', 'Optima', 'Cinzel Decorative', 'Inter', sans-serif !important;
+  font-weight: 800;
+  font-size: 1.1em;
+  letter-spacing: 0.5px;
+  line-height: 1.45;
+  margin-top: 6px;
   text-shadow: 
     2px 2px 0px #000000, 
-    -1px -1px 0px #000000, 
-    1px -1px 0px #000000, 
-    -1px 1px 0px #000000,
-    0px 2px 0px #000000;
+    -1.5px -1.5px 0px #000000, 
+    1.5px -1.5px 0px #000000, 
+    -1.5px 1.5px 0px #000000,
+    0px 2.5px 0px #000000,
+    0px -2px 0px #000000,
+    2px 0px 0px #000000,
+    -2px 0px 0px #000000 !important;
 }
 
 /* Superchat / Special event badge */
@@ -1149,10 +1229,11 @@ body.theme-persona_5 .chat-special-badge {
   border-radius: 0px !important;
   background: var(--p5-yellow) !important;
   color: #000000 !important;
+  font-family: 'Persona 5 Hatty', sans-serif !important;
   font-weight: 900 !important;
-  border: 2px solid #000000 !important;
-  transform: rotate(-1deg) skewX(-6deg);
-  box-shadow: 3px 3px 0px var(--p5-red);
+  border: 2.5px solid #000000 !important;
+  transform: rotate(-1.5deg) skewX(-7deg);
+  box-shadow: 4px 4px 0px var(--p5-red);
 }
 
 /* 15. Theme: Minecraft Bloque de Tierra y Pasto (Grass & Dirt Block Oficial) */
