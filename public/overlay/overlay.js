@@ -441,19 +441,34 @@
     if (msg.type === 'superchat') card.classList.add('is-superchat');
     if (msg.type === 'subscription') card.classList.add('is-sub');
 
-    // Authentic Persona 5 dialogue box frame
-    const bgBox = document.createElement('div');
-    bgBox.className = 'p5-box-bg';
-    card.appendChild(bgBox);
+    const isP5 = currentConfig.theme === 'persona_5' || currentConfig.theme === 'persona-5';
+
+    if (isP5) {
+      // Vector speech bubble pointer + lightning SVG
+      const tailSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      tailSvg.setAttribute('class', 'p5-speech-tail');
+      tailSvg.setAttribute('viewBox', '0 0 130 95');
+      tailSvg.setAttribute('fill', 'none');
+      tailSvg.innerHTML = `
+        <polygon points="125,5 0,28 125,44" fill="#08080a" stroke="#000000" stroke-width="8" stroke-linejoin="round" style="paint-order: stroke fill;" />
+        <polygon points="125,5 0,28 125,44" fill="#08080a" stroke="#ffffff" stroke-width="3.5" />
+        <polyline points="125,48 55,58 90,72 25,82 80,90" fill="none" stroke="#000000" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="miter" />
+        <polyline points="125,48 55,58 90,72 25,82 80,90" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="miter" />
+      `;
+      card.appendChild(tailSvg);
+
+      // Right comic manga white wedge SVG
+      const wedgeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      wedgeSvg.setAttribute('class', 'p5-right-wedge');
+      wedgeSvg.setAttribute('viewBox', '0 0 95 115');
+      wedgeSvg.setAttribute('fill', 'none');
+      wedgeSvg.innerHTML = `
+        <polygon points="5,8 90,52 32,110" fill="#ffffff" stroke="#000000" stroke-width="6.5" stroke-linejoin="round" />
+      `;
+      card.appendChild(wedgeSvg);
+    }
 
     const userName = msg.user.displayName || msg.user.name || 'User';
-    if (userName.length <= 9) {
-      card.classList.add('p5-size-small');
-    } else if (userName.length <= 16) {
-      card.classList.add('p5-size-medium');
-    } else {
-      card.classList.add('p5-size-large');
-    }
 
     // 1. Avatar
     if (currentConfig.showAvatar) {
@@ -490,8 +505,6 @@
     // 2. Content wrapper
     const content = document.createElement('div');
     content.className = 'chat-content';
-
-    const isP5 = currentConfig.theme === 'persona_5' || currentConfig.theme === 'persona-5';
 
     // Badges strip
     const badgesWrap = document.createElement('div');
