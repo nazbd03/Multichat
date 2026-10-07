@@ -457,6 +457,7 @@
 
     // 1. Avatar
     if (currentConfig.showAvatar) {
+      card.classList.add('has-avatar');
       const avatarWrap = document.createElement('div');
       avatarWrap.className = 'chat-avatar-container';
 
@@ -482,22 +483,26 @@
       }
 
       card.appendChild(avatarWrap);
+    } else {
+      card.classList.add('no-avatar');
     }
 
     // 2. Content wrapper
     const content = document.createElement('div');
     content.className = 'chat-content';
 
-    // 2.1 Header
-    const header = document.createElement('div');
-    header.className = 'chat-header';
+    const isP5 = currentConfig.theme === 'persona_5' || currentConfig.theme === 'persona-5';
+
+    // Badges strip
+    const badgesWrap = document.createElement('div');
+    badgesWrap.className = 'chat-badges';
 
     // Platform Badge
     if (currentConfig.showPlatformBadge) {
       const pBadge = document.createElement('span');
       pBadge.className = `platform-badge ${msg.platform}`;
       pBadge.innerHTML = `${PLATFORM_ICONS[msg.platform] || ''} <span>${PLATFORM_NAMES[msg.platform] || msg.platform}</span>`;
-      header.appendChild(pBadge);
+      badgesWrap.appendChild(pBadge);
     }
 
     // User Badges
@@ -506,31 +511,56 @@
         const uBadge = document.createElement('span');
         uBadge.className = `user-badge ${b.type}`;
         uBadge.textContent = b.label || b.type;
-        header.appendChild(uBadge);
+        badgesWrap.appendChild(uBadge);
       }
     }
+
+    // Timestamp
+    let timeSpan = null;
+    if (currentConfig.showTimestamp) {
+      timeSpan = document.createElement('span');
+      timeSpan.className = 'chat-timestamp';
+      const d = new Date(msg.timestamp || Date.now());
+      timeSpan.textContent = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    }
+
+    // 2.1 Header
+    const header = document.createElement('div');
+    header.className = 'chat-header';
 
     // Username
     const userSpan = document.createElement('span');
     userSpan.className = 'chat-username';
     userSpan.style.color = msg.user.color || '#38bdf8';
-    if (currentConfig.theme === 'persona_5' || currentConfig.theme === 'persona-5') {
+    if (isP5) {
       userSpan.innerHTML = formatP5Username(userName);
     } else {
       userSpan.textContent = userName;
     }
-    header.appendChild(userSpan);
 
-    // Timestamp
-    if (currentConfig.showTimestamp) {
-      const timeSpan = document.createElement('span');
-      timeSpan.className = 'chat-timestamp';
-      const d = new Date(msg.timestamp || Date.now());
-      timeSpan.textContent = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-      header.appendChild(timeSpan);
+    if (isP5) {
+      // Persona 5:
+      // The header sits strictly on the top-left white ribbon containing ONLY the username.
+      header.appendChild(userSpan);
+      content.appendChild(header);
+
+      if (timeSpan) {
+        badgesWrap.appendChild(timeSpan);
+      }
+      if (badgesWrap.children.length > 0) {
+        card.appendChild(badgesWrap);
+      }
+    } else {
+      // Standard themes:
+      if (badgesWrap.children.length > 0) {
+        header.appendChild(badgesWrap);
+      }
+      header.appendChild(userSpan);
+      if (timeSpan) {
+        header.appendChild(timeSpan);
+      }
+      content.appendChild(header);
     }
-
-    content.appendChild(header);
 
     // 2.2 Special Event Highlight (Gift/Superchat)
     if (msg.type === 'superchat' && msg.extra?.amount) {

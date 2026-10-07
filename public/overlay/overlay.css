@@ -178,6 +178,13 @@ html, body {
   line-height: 1.2;
 }
 
+/* Badges Container */
+.chat-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Platform Badge */
 .platform-badge {
   display: inline-flex;
@@ -1091,25 +1098,40 @@ body.theme-persona_5 .chat-avatar-fallback {
 body.theme-persona-5 .chat-header,
 body.theme-persona_5 .chat-header {
   position: absolute;
-  top: 32px;
-  left: 88px;
+  top: 31px;
+  left: 90px;
   transform: rotate(-14.65deg);
   display: flex;
   align-items: center;
-  gap: 8px;
   z-index: 6;
   pointer-events: none;
+  max-width: 215px;
+  overflow: hidden;
+}
+
+body.theme-persona-5 .chat-message.p5-size-medium .chat-header,
+body.theme-persona_5 .chat-message.p5-size-medium .chat-header {
+  max-width: 260px;
+}
+
+body.theme-persona-5 .chat-message.p5-size-large .chat-header,
+body.theme-persona_5 .chat-message.p5-size-large .chat-header {
+  max-width: 315px;
 }
 
 /* Persona 5 Username inside the nameplate banner */
 body.theme-persona-5 .chat-username,
 body.theme-persona_5 .chat-username {
-  display: inline-block;
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background: transparent !important;
   color: #000000 !important;
   font-family: 'Persona 5 Hatty', 'Inter', sans-serif !important;
   font-weight: 900 !important;
-  font-size: 18.5px;
+  font-size: 18px;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   border: none !important;
@@ -1117,7 +1139,7 @@ body.theme-persona_5 .chat-username {
   padding: 0 !important;
   margin: 0 !important;
   text-shadow: none !important;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 /* Iconic Ransom Note tile inside the username */
@@ -1132,7 +1154,26 @@ body.theme-persona_5 .chat-username .ransom-tile {
   font-weight: 900;
 }
 
-/* Platform Badges inside the banner */
+/* Badges Strip: Positioned right below the avatar */
+body.theme-persona-5 .chat-badges,
+body.theme-persona_5 .chat-badges {
+  position: absolute;
+  left: -18px;
+  top: 120px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 12;
+  transform: skewX(-7deg);
+}
+
+body.theme-persona-5 .chat-message.no-avatar .chat-badges,
+body.theme-persona_5 .chat-message.no-avatar .chat-badges {
+  left: 20px;
+  top: 120px;
+}
+
+/* Platform Badges */
 body.theme-persona-5 .platform-badge,
 body.theme-persona_5 .platform-badge {
   border-radius: 0px !important;
@@ -1142,7 +1183,7 @@ body.theme-persona_5 .platform-badge {
   padding: 1px 6px;
   border: 1.5px solid #000000;
   transform: skewX(-6deg);
-  box-shadow: 1.5px 1.5px 0px #000000;
+  box-shadow: 2px 2px 0px #000000;
   letter-spacing: 0.5px;
 }
 
@@ -1178,19 +1219,22 @@ body.theme-persona_5 .user-badge {
   border: 1.5px solid #000000;
   transform: skewX(-6deg);
   padding: 1px 5px;
-  box-shadow: 1.5px 1.5px 0px #000000;
+  box-shadow: 2px 2px 0px #000000;
 }
 
 /* Timestamp */
 body.theme-persona-5 .chat-timestamp,
 body.theme-persona_5 .chat-timestamp {
   font-family: 'Persona 5 Hatty', monospace;
-  color: #000000 !important;
-  background: transparent;
-  border: none;
-  font-size: 11px;
+  color: #ffffff !important;
+  background: #000000;
+  border: 1.5px solid #ffffff;
+  font-size: 9.5px;
   font-weight: 800;
-  opacity: 0.8;
+  padding: 1px 5px;
+  transform: skewX(-6deg);
+  box-shadow: 2px 2px 0px #000000;
+  opacity: 0.9;
 }
 
 /* Content Container */
