@@ -532,13 +532,15 @@
   }
 
   function removeMessageWithExitAnim(element) {
-    if (!element || element.dataset.exiting) return;
+    if (!element || element.dataset.exiting === 'true') return;
     element.dataset.exiting = 'true';
+    element.style.animation = 'none';
+    element.classList.remove('anim-slide-left', 'anim-slide-up', 'anim-pop-in', 'anim-fade');
+    void element.offsetWidth;
     const exitAnim = currentConfig.exitAnimation || 'fade-out';
     element.classList.add(`exit-${exitAnim}`);
-    element.classList.add('fade-out');
     setTimeout(() => {
-      if (element.parentNode) {
+      if (element && element.parentNode) {
         element.parentNode.removeChild(element);
       }
     }, 460);

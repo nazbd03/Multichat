@@ -554,6 +554,21 @@
     });
   });
 
+  const btnTestAnimations = document.getElementById('btn-test-animations');
+  if (btnTestAnimations) {
+    btnTestAnimations.addEventListener('click', () => {
+      liveUpdateConfig();
+      const inText = settingAnimation?.options[settingAnimation.selectedIndex]?.text || 'Entrada';
+      const outText = settingExitAnimation?.options[settingExitAnimation.selectedIndex]?.text || 'Salida';
+      socket.emit('send-test-message', {
+        platform: 'twitch',
+        user: 'DemoAnimación',
+        text: `✨ Probando animaciones: [${inText}] -> [${outText}]`
+      });
+      showToast('Mensaje enviado al overlay para probar animaciones');
+    });
+  }
+
   // Custom Message Sender
   btnSendCustom.addEventListener('click', sendCustomTest);
   inputCustomMsg.addEventListener('keydown', (e) => {

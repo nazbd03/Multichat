@@ -167,54 +167,46 @@ set "DEST=${targetExePath}"
 set "PID=${currentPid}"
 set "LOG=${logPath}"
 
-echo [%DATE% %TIME%] === Iniciando actualizador in-place === > "%LOG%"
-echo [%DATE% %TIME%] PID a esperar: %PID% >> "%LOG%"
-echo [%DATE% %TIME%] Origen: %SRC% >> "%LOG%"
-echo [%DATE% %TIME%] Destino: %DEST% >> "%LOG%"
+echo [%DATE% %TIME%] === Iniciando actualizador Multichat === > "%LOG%"
+echo [%DATE% %TIME%] PID principal: %PID% >> "%LOG%"
+echo [%DATE% %TIME%] Origen: "%SRC%" >> "%LOG%"
+echo [%DATE% %TIME%] Destino: "%DEST%" >> "%LOG%"
 
-:: 1. Esperar a que el proceso anterior cierre completamente
-if not "%PID%"=="" (
-  echo [%DATE% %TIME%] Esperando que el proceso anterior (%PID%) termine... >> "%LOG%"
-  :wait_pid
-  tasklist /fi "PID eq %PID%" 2>nul | find "%PID%" >nul
-  if not errorlevel 1 (
-    timeout /t 1 /nobreak >nul
-    goto wait_pid
-  )
-)
-
-:: 2. Pausa adicional para liberacion de locks en Windows
+:: 1. Cerrar procesos activos para liberar descriptores de archivos
+if not "%PID%"=="" taskkill /f /pid %PID% >nul 2>&1
+taskkill /f /im "Multistream.Chat.exe" >nul 2>&1
+taskkill /f /im "Multistream Chat.exe" >nul 2>&1
+taskkill /f /im "Multichat Overlay.exe" >nul 2>&1
 timeout /t 2 /nobreak >nul
 
-:: 3. Reintentar reemplazo hasta 45 veces (1 seg cada intento)
+:: 2. Bucle de reintento de sustitucion (hasta 20 intentos)
 set /a ATTEMPTS=0
-:try_copy
+:try_replace
 set /a ATTEMPTS+=1
-echo [%DATE% %TIME%] Intento de copia #%ATTEMPTS% >> "%LOG%"
-copy /y "%SRC%" "%DEST%" >nul 2>&1
-if not errorlevel 1 goto copy_success
+echo [%DATE% %TIME%] Intento de reemplazo #%ATTEMPTS% >> "%LOG%"
 
-if %ATTEMPTS% geq 45 goto force_replace
-timeout /t 1 /nobreak >nul
-goto try_copy
-
-:force_replace
-echo [%DATE% %TIME%] Intento de reemplazo forzado mediante renombramiento previo >> "%LOG%"
 if exist "%DEST%.old" del /f /q "%DEST%.old" >nul 2>&1
 move /y "%DEST%" "%DEST%.old" >nul 2>&1
 copy /y "%SRC%" "%DEST%" >nul 2>&1
-if not errorlevel 1 goto copy_success
 
-echo [%DATE% %TIME%] ERROR: No se pudo reemplazar el archivo tras 45 intentos >> "%LOG%"
-goto cleanup
+if exist "%DEST%" (
+  echo [%DATE% %TIME%] Archivo reemplazado con exito. >> "%LOG%"
+  goto launch_app
+)
 
-:copy_success
-echo [%DATE% %TIME%] Archivo reemplazado exitosamente! >> "%LOG%"
-if exist "%SRC%" del /f /q "%SRC%" >nul 2>&1
+if %ATTEMPTS% geq 20 goto fallback_launch
+timeout /t 1 /nobreak >nul
+goto try_replace
+
+:fallback_launch
+echo [%DATE% %TIME%] Reemplazo directo bloqueado. Usando archivo descargado... >> "%LOG%"
+copy /y "%SRC%" "%USERPROFILE%\\Desktop\\Multistream.Chat.exe" >nul 2>&1
+if exist "%USERPROFILE%\\Desktop\\Multistream.Chat.exe" set "DEST=%USERPROFILE%\\Desktop\\Multistream.Chat.exe"
+if not exist "%DEST%" set "DEST=%SRC%"
+
+:launch_app
 if exist "%DEST%.old" del /f /q "%DEST%.old" >nul 2>&1
-
-:: 4. Iniciar la aplicacion actualizada
-echo [%DATE% %TIME%] Iniciando nueva version: %DEST% >> "%LOG%"
+echo [%DATE% %TIME%] Iniciando nueva version: "%DEST%" >> "%LOG%"
 start "" "%DEST%"
 
 :cleanup

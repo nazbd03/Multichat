@@ -82,14 +82,9 @@ app.post('/api/updates/download-and-apply', async (req, res) => {
       }
     }
 
-    // If still not found and in development mode, offer direct manual download
+    // If targetExe is not set, default to placing the standalone exe directly on Desktop
     if (!targetExe || !fs.existsSync(targetExe)) {
-      return res.json({
-        ok: false,
-        requiresManualDownload: true,
-        url: update.downloadUrl,
-        message: 'No se detectó un archivo ejecutable portable en ejecución. Descarga directa disponible.'
-      });
+      targetExe = path.join(os.homedir(), 'Desktop', 'Multistream.Chat.exe');
     }
 
     isUpdating = true;
