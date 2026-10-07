@@ -183,40 +183,45 @@
     // 2. Reduce excessive laughing spam: jajajajaja -> jaja, hahahahaha -> haha, xdxdxdxd -> xdxd
     text = text.replace(/(ja|je|ji|ha|he|hi|xd|lol){3,}/gi, '$1$1');
 
-    // 3. Reduce character spam: e.g. "WWWWWWWWWW" -> "WW", "aaaaaa" -> "aa", "777777" -> "77"
-    text = text.replace(/(.)\1{2,}/gu, '$1$1');
+    // 3. Reduce character spam for non-digits: e.g. "WWWWWWWWWW" -> "WW", "aaaaaa" -> "aa"
+    text = text.replace(/([^\d])\1{2,}/gu, '$1$1');
 
     // 4. Reduce repeated consecutive words: e.g. "hola hola hola hola hola" -> "hola hola"
     text = text.replace(/\b(\p{L}+)(?:\s+\1){2,}\b/giu, '$1 $1');
 
-    // 5. Anti-Spam de números gigantescos y cadenas de números al azar:
-    // a) Cortar números individuales excesivamente altos (más de 4 dígitos -> máx 3 cifras para evitar lecturas de billones)
-    text = text.replace(/\d{5,}/g, (match) => match.slice(0, 3));
-
-    // b) Cortar secuencias o listas de números al azar espaciados (ej: "1 2 3 4 5 6" o "94, 82, 10, 38")
-    text = text.replace(/(?:\b\d{1,4}\b[\s,.-]+){2,}\b\d{1,4}\b/g, (match) => {
-      const parts = match.split(/[\s,.-]+/).filter(Boolean);
-      return parts.slice(0, 2).join(' ');
+    // 5. Anti-Spam de números: lectura completa y limpia hasta 10 millones (10,000,000)
+    // a) Normalizar separadores de miles (ej: "10.000.000" o "10,000,000" -> 10000000)
+    text = text.replace(/\b\d{1,3}(?:[.,]\d{3})+\b/g, (match) => {
+      return match.replace(/[.,]/g, '');
     });
 
-    // c) Limitar total de dígitos acumulados en el mensaje a máximo 7 para bloquear flood de números al azar
+    // b) Limitar cada número individual a un valor máximo de 10 millones (10000000)
+    text = text.replace(/\b\d+\b/g, (match) => {
+      if (match.length > 8) return '10000000';
+      const val = parseInt(match, 10);
+      if (isNaN(val)) return match;
+      if (val > 10000000) return '10000000';
+      return String(val);
+    });
+
+    // c) Cortar secuencias o listas excesivas de números al azar (ej: "1 2 3 4 5 6" o "94, 82, 10, 38, 55")
+    text = text.replace(/(?:\b\d+\b[\s,.-]+){3,}\b\d+\b/g, (match) => {
+      const parts = match.split(/[\s,.-]+/).filter(Boolean);
+      return parts.slice(0, 3).join(' ');
+    });
+
+    // d) Limitar total de dígitos acumulados en el mensaje a máximo 18
     let accumulatedDigits = 0;
     text = text.replace(/\d+/g, (match) => {
-      if (accumulatedDigits >= 7) return '';
-      if (accumulatedDigits + match.length > 7) {
-        const keep = match.slice(0, Math.max(0, 7 - accumulatedDigits));
-        accumulatedDigits = 7;
+      if (accumulatedDigits >= 18) return '';
+      if (accumulatedDigits + match.length > 18) {
+        const keep = match.slice(0, Math.max(0, 18 - accumulatedDigits));
+        accumulatedDigits = 18;
         return keep;
       }
       accumulatedDigits += match.length;
       return match;
     });
-
-    // d) Si el mensaje no contiene letras y eran puros números largos, limitar a 3 dígitos
-    const hasLetters = /[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]/.test(text);
-    if (!hasLetters && (text.match(/\d/g) || []).length > 3) {
-      text = text.replace(/\D/g, '').slice(0, 3);
-    }
 
     // 6. Clean unpronounceable symbols and non-speech clutter
     text = text.replace(/[^\p{L}\p{N}\s,!?¿¡]/gu, ' ').trim();

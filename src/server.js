@@ -211,20 +211,28 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
 function sanitizeTtsNumbers(raw) {
   if (!raw) return '';
   let str = raw;
-  // 1. Cut excessively high numbers (>4 digits -> max 3 digits)
-  str = str.replace(/\d{5,}/g, m => m.slice(0, 3));
-  // 2. Reduce lists/sequences of spaced numbers
-  str = str.replace(/(?:\b\d{1,4}\b[\s,.-]+){2,}\b\d{1,4}\b/g, m => {
-    const p = m.split(/[\s,.-]+/).filter(Boolean);
-    return p.slice(0, 2).join(' ');
+  // 1. Normalize thousand separators (e.g. "10.000.000" or "10,000,000" -> 10000000)
+  str = str.replace(/\b\d{1,3}(?:[.,]\d{3})+\b/g, m => m.replace(/[.,]/g, ''));
+  // 2. Cap individual numbers up to 10,000,000 (10 millones)
+  str = str.replace(/\b\d+\b/g, m => {
+    if (m.length > 8) return '10000000';
+    const val = parseInt(m, 10);
+    if (isNaN(val)) return m;
+    if (val > 10000000) return '10000000';
+    return String(val);
   });
-  // 3. Limit accumulated digits to 7
+  // 3. Reduce lists/sequences of spaced numbers
+  str = str.replace(/(?:\b\d+\b[\s,.-]+){3,}\b\d+\b/g, m => {
+    const p = m.split(/[\s,.-]+/).filter(Boolean);
+    return p.slice(0, 3).join(' ');
+  });
+  // 4. Limit accumulated digits to 18
   let count = 0;
   str = str.replace(/\d+/g, m => {
-    if (count >= 7) return '';
-    if (count + m.length > 7) {
-      const keep = m.slice(0, Math.max(0, 7 - count));
-      count = 7;
+    if (count >= 18) return '';
+    if (count + m.length > 18) {
+      const keep = m.slice(0, Math.max(0, 18 - count));
+      count = 18;
       return keep;
     }
     count += m.length;
