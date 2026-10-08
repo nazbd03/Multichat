@@ -79,7 +79,7 @@ const DEFAULT_CONFIG = {
     ttsEnabled: true,
     ttsVolume: 90,
     ttsSpeed: 1.0,
-    ttsLang: 'rick_sanchez_latino',
+    ttsLang: 'rick_latino',
     ttsReadUsername: true,
     ttsTranslate: false,
     ttsCommandOnly: false,

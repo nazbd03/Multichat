@@ -105,6 +105,7 @@
 
   const SAMPLE_PHRASES = {
     'rick_latino': '¡Wubba Lubba Dub Dub! Soy Rick Sanchez, el científico más inteligente de toda la galaxia.',
+    'rick_sanchez_latino': '¡Wubba Lubba Dub Dub! Soy Rick Sanchez, el científico más inteligente de toda la galaxia.',
     'goku_latino': '¡Hola a todos! Soy Goku, gracias por venir al directo amigos.',
     'es_mx_002': '¡Qué onda compas! Esta es la voz con acento de México y Latinoamérica.',
     'enrique': '¡Hola a todos! Soy Enrique, la voz clásica española para tus directos.',
@@ -726,9 +727,12 @@
           'fr': 'fr_001',
           'ja': 'jp_001'
         };
-        const voiceVal = legacyMap[o.ttsLang] || o.ttsLang || 'es_mx_002';
+        let voiceVal = legacyMap[o.ttsLang] || o.ttsLang || 'rick_latino';
+        if (voiceVal === 'rick_sanchez_latino' || voiceVal === 'rick_sanchez') {
+          voiceVal = 'rick_latino';
+        }
         settingTtsLang.value = voiceVal;
-        if (!settingTtsLang.value) settingTtsLang.value = 'es_mx_002';
+        if (!settingTtsLang.value) settingTtsLang.value = 'rick_latino';
       }
       if (settingTtsVolume) {
         settingTtsVolume.value = o.ttsVolume || 90;
@@ -922,7 +926,7 @@
         ttsCommandOnly: settingTtsCommandOnly ? settingTtsCommandOnly.checked : false,
         ttsCommand: settingTtsCommand ? settingTtsCommand.value.trim() || '!tts' : '!tts',
         ttsAntiSpam: settingTtsAntiSpam ? settingTtsAntiSpam.checked : true,
-        ttsLang: settingTtsLang ? settingTtsLang.value : 'es_mx_002',
+        ttsLang: settingTtsLang ? settingTtsLang.value : 'rick_latino',
         fishApiKey: currentConfig.overlay?.fishApiKey || 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE',
         ttsVolume: settingTtsVolume ? parseInt(settingTtsVolume.value, 10) : 90,
         ttsSpeed: settingTtsSpeed ? parseFloat(settingTtsSpeed.value) : 1.0,

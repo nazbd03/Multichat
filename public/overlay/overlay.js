@@ -665,12 +665,28 @@
     return (string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  const receivedMessageIds = new Set();
+
   // Socket Events
   socket.on('config-update', (cfg) => {
     applyConfig(cfg);
   });
 
   socket.on('chat-message', (msg) => {
+    if (!msg) return;
+
+    // Strict client-side deduplication (prevents duplicate visual cards and duplicate TTS)
+    if (msg.id) {
+      if (receivedMessageIds.has(msg.id) || document.getElementById(`msg-${msg.id}`)) {
+        return;
+      }
+      receivedMessageIds.add(msg.id);
+      if (receivedMessageIds.size > 500) {
+        const firstKey = receivedMessageIds.values().next().value;
+        receivedMessageIds.delete(firstKey);
+      }
+    }
+
     // Avoid rendering phantom blank cards if message is completely empty
     if (msg.type === 'chat' && !msg.formattedMessage && !msg.message) {
       return;

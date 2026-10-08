@@ -16,6 +16,28 @@ class KickConnector extends EventEmitter {
     this.chatroomCache = {};
     this.avatarCache = new Map();
     this.lastError = null;
+    this.seenMessageIds = new Map();
+  }
+
+  isDuplicate(id, dedupeKey) {
+    const now = Date.now();
+    if (this.seenMessageIds.size > 600) {
+      for (const [k, ts] of this.seenMessageIds.entries()) {
+        if (now - ts > 60000) this.seenMessageIds.delete(k);
+      }
+    }
+    if (id && this.seenMessageIds.has(String(id))) {
+      return true;
+    }
+    if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
+      const last = this.seenMessageIds.get(dedupeKey);
+      if (now - last < 8000) {
+        return true;
+      }
+    }
+    if (id) this.seenMessageIds.set(String(id), now);
+    if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
+    return false;
   }
 
   cleanChannelInput(raw) {
@@ -255,6 +277,12 @@ class KickConnector extends EventEmitter {
       const rawMessage = data.content || '';
       const formattedMessage = this.formatKickEmotes(rawMessage);
 
+      const rawMsgId = data.id;
+      const dedupeKey = `${username}:${rawMessage}`;
+      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+        return;
+      }
+
       let avatar = sender.profile_pic 
         || sender.profile_thumb 
         || sender.profile_image 
@@ -266,8 +294,10 @@ class KickConnector extends EventEmitter {
         avatar = await this.resolveAvatar(username);
       }
 
+      const stableId = rawMsgId ? `kick_${rawMsgId}` : `kick_${username}_${Date.now()}`;
+
       const normalizedMsg = {
-        id: data.id || `kick_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: stableId,
         platform: 'kick',
         user: {
           name: username,

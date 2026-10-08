@@ -9,6 +9,28 @@ class YouTubeConnector extends EventEmitter {
     this.status = 'disconnected';
     this.shouldReconnect = false;
     this.reconnectTimer = null;
+    this.seenMessageIds = new Map();
+  }
+
+  isDuplicate(id, dedupeKey) {
+    const now = Date.now();
+    if (this.seenMessageIds.size > 600) {
+      for (const [k, ts] of this.seenMessageIds.entries()) {
+        if (now - ts > 60000) this.seenMessageIds.delete(k);
+      }
+    }
+    if (id && this.seenMessageIds.has(String(id))) {
+      return true;
+    }
+    if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
+      const last = this.seenMessageIds.get(dedupeKey);
+      if (now - last < 8000) {
+        return true;
+      }
+    }
+    if (id) this.seenMessageIds.set(String(id), now);
+    if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
+    return false;
   }
 
   parseQuery(input) {
@@ -166,8 +188,16 @@ class YouTubeConnector extends EventEmitter {
         superChatAmount = item.superchat.amount || '';
       }
 
+      const rawMsgId = item.id;
+      const dedupeKey = `${username}:${rawText}`;
+      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+        return;
+      }
+
+      const stableId = rawMsgId ? `yt_${rawMsgId}` : `yt_${username}_${Date.now()}`;
+
       const normalizedMsg = {
-        id: item.id || `yt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: stableId,
         platform: 'youtube',
         user: {
           name: username,

@@ -10,6 +10,28 @@ class TikTokConnector extends EventEmitter {
     this.shouldReconnect = false;
     this.reconnectTimer = null;
     this.lastError = null;
+    this.seenMessageIds = new Map();
+  }
+
+  isDuplicate(id, dedupeKey) {
+    const now = Date.now();
+    if (this.seenMessageIds.size > 600) {
+      for (const [k, ts] of this.seenMessageIds.entries()) {
+        if (now - ts > 60000) this.seenMessageIds.delete(k);
+      }
+    }
+    if (id && this.seenMessageIds.has(String(id))) {
+      return true;
+    }
+    if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
+      const last = this.seenMessageIds.get(dedupeKey);
+      if (now - last < 8000) {
+        return true;
+      }
+    }
+    if (id) this.seenMessageIds.set(String(id), now);
+    if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
+    return false;
   }
 
   async connect(username, isBackgroundRetry = false) {
@@ -149,8 +171,16 @@ class TikTokConnector extends EventEmitter {
         }
       }
 
+      const rawMsgId = data.msgId || data.common?.msgId;
+      const dedupeKey = `${handle}:${text}`;
+      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+        return;
+      }
+
+      const stableId = rawMsgId ? `tt_${rawMsgId}` : `tt_${handle}_${Date.now()}`;
+
       const normalizedMsg = {
-        id: `tt_${data.msgId || data.common?.msgId || Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: stableId,
         platform: 'tiktok',
         user: {
           name: handle,
@@ -217,8 +247,16 @@ class TikTokConnector extends EventEmitter {
         formatted += ` <img class="chat-emote chat-gift-icon" src="${giftIcon}" alt="${escapeHtml(giftName)}" />`;
       }
 
+      const rawMsgId = data.msgId || data.common?.msgId;
+      const dedupeKey = `gift:${handle}:${giftName}:${count}`;
+      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+        return;
+      }
+
+      const stableId = rawMsgId ? `tt_gift_${rawMsgId}` : `tt_gift_${handle}_${Date.now()}`;
+
       const normalizedMsg = {
-        id: `tt_gift_${data.msgId || data.common?.msgId || Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: stableId,
         platform: 'tiktok',
         user: {
           name: handle,

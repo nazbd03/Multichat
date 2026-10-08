@@ -142,6 +142,37 @@ app.post('/api/tts/skip', (req, res) => {
   res.json({ ok: true, skipped: true });
 });
 
+// Server-level message deduplication cache
+const recentServerMessageIds = new Map();
+
+function isDuplicateServerMessage(msg) {
+  if (!msg) return true;
+  const now = Date.now();
+  if (recentServerMessageIds.size > 800) {
+    for (const [k, ts] of recentServerMessageIds.entries()) {
+      if (now - ts > 30000) recentServerMessageIds.delete(k);
+    }
+  }
+
+  // Deduplicate by unique message ID
+  if (msg.id && recentServerMessageIds.has(String(msg.id))) {
+    return true;
+  }
+
+  // Deduplicate identical message text from same user within 4 seconds
+  const contentKey = `${msg.platform}:${msg.user?.name || ''}:${msg.message || ''}`;
+  if (recentServerMessageIds.has(contentKey)) {
+    const lastSeen = recentServerMessageIds.get(contentKey);
+    if (now - lastSeen < 4000) {
+      return true;
+    }
+  }
+
+  if (msg.id) recentServerMessageIds.set(String(msg.id), now);
+  recentServerMessageIds.set(contentKey, now);
+  return false;
+}
+
 // Tikfinity / External TikTok Webhook Bridge
 app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
   try {
@@ -151,10 +182,12 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
     const avatar = data.avatar || data.profilePictureUrl || '';
     const giftName = data.giftName || data.gift || '';
     const count = parseInt(data.giftCount || data.count || 1, 10);
+    const rawMsgId = data.id || data.msgId;
 
     if (giftName) {
+      const stableId = rawMsgId ? `tt_tf_gift_${rawMsgId}` : `tt_tf_gift_${username}_${Date.now()}`;
       const normalized = {
-        id: `tt_tf_gift_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: stableId,
         platform: 'tiktok',
         user: {
           name: username,
@@ -173,14 +206,18 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
         extra: { giftName, giftCount: count },
         timestamp: Date.now()
       };
+      if (isDuplicateServerMessage(normalized)) {
+        return res.json({ ok: true, duplicate: true });
+      }
       io.emit('chat-message', normalized);
       return res.json({ ok: true, received: 'gift' });
     }
 
     if (text) {
+      const stableId = rawMsgId ? `tt_tf_${rawMsgId}` : `tt_tf_${username}_${Date.now()}`;
       const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const normalized = {
-        id: `tt_tf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        id: stableId,
         platform: 'tiktok',
         user: {
           name: username,
@@ -198,6 +235,9 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
         type: 'chat',
         timestamp: Date.now()
       };
+      if (isDuplicateServerMessage(normalized)) {
+        return res.json({ ok: true, duplicate: true });
+      }
       io.emit('chat-message', normalized);
       return res.json({ ok: true, received: 'chat' });
     }
@@ -211,6 +251,9 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
 function sanitizeTtsNumbers(raw) {
   if (!raw) return '';
   let str = raw;
+  // Reduce excessive laughing spam: permite hasta 7 repeticiones (ej: "JAJAJAJAJAJAJA")
+  str = str.replace(/(ja|je|ji|ha|he|hi){8,}/gi, (m, g) => g.repeat(7));
+  str = str.replace(/(xd|lol){6,}/gi, (m, g) => g.repeat(5));
   // 1. Normalize thousand separators (e.g. "10.000.000" or "10,000,000" -> 10000000)
   str = str.replace(/\b\d{1,3}(?:[.,]\d{3})+\b/g, m => m.replace(/[.,]/g, ''));
   // 2. Read numbers up to 10,000,000. If exceeding 10 million, do not read it (omit completely)
@@ -239,6 +282,15 @@ function sanitizeTtsNumbers(raw) {
     return m;
   });
   return str.replace(/\s{2,}/g, ' ').trim();
+}
+
+function cleanSpeechText(text) {
+  if (!text) return '';
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '')
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // TTS Speech Audio Endpoint with High-Definition Streamer Voices & Accents
@@ -282,7 +334,7 @@ app.get('/api/tts', async (req, res) => {
       voice = VOICE_MAP[voice];
     }
 
-    let speechText = rawText;
+    let speechText = cleanSpeechText(rawText) || rawText;
 
     // Optional translation to match target voice language
     if (shouldTranslate) {
@@ -296,8 +348,9 @@ app.get('/api/tts', async (req, res) => {
       else if (voice.startsWith('hi') || voice === 'google_hi' || voice.includes('_in_')) targetLang = 'hi';
 
       try {
-        const transRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(rawText)}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        const transRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(speechText)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          signal: AbortSignal.timeout(3500)
         });
         if (transRes.ok) {
           const transData = await transRes.json();
@@ -312,9 +365,10 @@ app.get('/api/tts', async (req, res) => {
 
     // 1. Fish Audio Character Voices (Rick Sanchez Latino, Goku Latino)
     const FISH_MODELS = {
-      'rick_latino': 'f75ae6efbe9945c19be01e233e045d0e', // Rick Sanchez (científico más inteligente de toda la galaxia)
+      'rick_latino': 'f75ae6efbe9945c19be01e233e045d0e',
       'rick_sanchez': 'f75ae6efbe9945c19be01e233e045d0e',
-      'goku_latino': '9f850ee9ada24b20a6866825eaefd3f8'  // Goku (Mario Castañeda DBZ)
+      'rick_sanchez_latino': 'f75ae6efbe9945c19be01e233e045d0e',
+      'goku_latino': '9f850ee9ada24b20a6866825eaefd3f8'
     };
 
     if (FISH_MODELS[voice]) {
@@ -334,7 +388,8 @@ app.get('/api/tts', async (req, res) => {
             reference_id: modelId,
             format: 'mp3',
             model: 's2.1-pro-free'
-          })
+          }),
+          signal: AbortSignal.timeout(5000)
         });
 
         if (fishRes.ok) {
@@ -361,14 +416,16 @@ app.get('/api/tts', async (req, res) => {
             'Content-Type': 'application/x-www-form-urlencoded',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
           },
-          body: postData
+          body: postData,
+          signal: AbortSignal.timeout(4500)
         });
 
         if (ttsRes.ok) {
           const ttsData = await ttsRes.json();
           if (ttsData && ttsData.URL) {
             const mp3Res = await fetch(ttsData.URL, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+              signal: AbortSignal.timeout(4500)
             });
             if (mp3Res.ok) {
               res.setHeader('Content-Type', 'audio/mpeg');
@@ -384,29 +441,36 @@ app.get('/api/tts', async (req, res) => {
       voice = 'es_002'; // Fallback to Spanish male
     }
 
-    // 2. High-Definition Streamer Voice API (TikTok Neural Voices)
+    // 3. High-Definition Streamer Voice API (TikTok Neural Voices with fast retry)
     if (!voice.startsWith('google_')) {
-      try {
-        const ttRes = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: speechText.slice(0, 180), voice: voice })
-        });
-        if (ttRes.ok) {
-          const ttData = await ttRes.json();
-          if (ttData.success && ttData.data) {
-            const buffer = Buffer.from(ttData.data, 'base64');
-            res.setHeader('Content-Type', 'audio/mpeg');
-            res.setHeader('Cache-Control', 'no-cache');
-            return res.send(buffer);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const ttRes = await fetch('https://tiktok-tts.weilnet.workers.dev/api/generation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: speechText.slice(0, 180), voice: voice }),
+            signal: AbortSignal.timeout(4500)
+          });
+          if (ttRes.ok) {
+            const ttData = await ttRes.json();
+            if (ttData.success && ttData.data) {
+              const buffer = Buffer.from(ttData.data, 'base64');
+              res.setHeader('Content-Type', 'audio/mpeg');
+              res.setHeader('Cache-Control', 'no-cache');
+              return res.send(buffer);
+            }
           }
+        } catch (ttErr) {
+          if (attempt === 0) {
+            await new Promise(r => setTimeout(r, 250));
+            continue;
+          }
+          console.warn('[TTS] Primary voice engine failed, using fallback:', ttErr.message);
         }
-      } catch (ttErr) {
-        console.warn('[TTS] Primary voice engine failed, using fallback:', ttErr.message);
       }
     }
 
-    // 3. Fallback to Google Translate TTS
+    // 4. Fallback to Google Translate TTS
     let gLang = 'es';
     if (voice === 'es_002' || voice === 'google_es_es' || voice === 'enrique') gLang = 'es-ES';
     else if (voice.startsWith('en_') && voice !== 'enrique') gLang = 'en';
@@ -419,7 +483,8 @@ app.get('/api/tts', async (req, res) => {
 
     const gUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(gLang)}&q=${encodeURIComponent(speechText.slice(0, 180))}`;
     const gRes = await fetch(gUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: AbortSignal.timeout(4000)
     });
 
     if (gRes.ok) {
@@ -454,6 +519,9 @@ const statuses = {
 // Wire up connectors
 for (const [platform, connector] of Object.entries(connectors)) {
   connector.on('message', (msg) => {
+    // Global server-side deduplication (suppresses duplicate webcast events, retries, and rapid repeats)
+    if (isDuplicateServerMessage(msg)) return;
+
     // Filter banned words if configured
     if (config.overlay.bannedWords && config.overlay.bannedWords.length > 0) {
       const isFiltered = filterMessage(msg, config.overlay.bannedWords);
@@ -534,9 +602,15 @@ io.on('connection', (socket) => {
   // Client requests config update
   socket.on('update-config', (newConfig) => {
     try {
+      const prevPlatforms = JSON.stringify(config.platforms);
       config = saveConfig(newConfig);
       io.emit('config-update', config);
-      applyPlatformConnections();
+      const newPlatforms = JSON.stringify(config.platforms);
+      // ONLY apply platform connections if platforms configuration actually changed!
+      // Overlay settings (TTS voice, theme, sliders, etc.) NEVER disrupt live platform connections!
+      if (prevPlatforms !== newPlatforms) {
+        applyPlatformConnections();
+      }
     } catch (err) {
       socket.emit('error-msg', 'Error al guardar la configuración');
     }
@@ -553,7 +627,7 @@ io.on('connection', (socket) => {
       }
       config = saveConfig(config);
       io.emit('config-update', config);
-      applyPlatformConnection(platform);
+      applyPlatformConnection(platform, true);
     }
   });
 
@@ -579,12 +653,38 @@ io.on('connection', (socket) => {
   });
 });
 
-function applyPlatformConnection(platform) {
+function isSameTarget(platform, connector, pConfig) {
+  if (!connector || !pConfig) return false;
+  if (platform === 'twitch') {
+    const target = (pConfig.channel || '').toLowerCase().replace(/^#/, '').trim();
+    return connector.channel === target;
+  }
+  if (platform === 'kick') {
+    const target = (pConfig.channel || '').toString().trim().replace(/^https?:\/\/(?:www\.)?kick\.com\//i, '').replace(/[\/\?#].*$/, '').replace(/^@/, '').toLowerCase();
+    return connector.channel === target;
+  }
+  if (platform === 'youtube') {
+    return connector.query === (pConfig.query || '').trim();
+  }
+  if (platform === 'tiktok') {
+    const target = (pConfig.username || '').trim().replace(/^@/, '');
+    return connector.username === target;
+  }
+  return false;
+}
+
+function applyPlatformConnection(platform, force = false) {
   const pConfig = config.platforms[platform];
   const connector = connectors[platform];
   if (!connector || !pConfig) return;
 
   if (pConfig.enabled) {
+    const isAlreadyConnected = (connector.status === 'connected' || connector.status === 'connecting') && isSameTarget(platform, connector, pConfig);
+    if (!force && isAlreadyConnected) {
+      // Platform is already active on the desired channel; NEVER disrupt live connection!
+      return;
+    }
+
     if (platform === 'twitch' && pConfig.channel) {
       connector.connect(pConfig.channel);
     } else if (platform === 'kick' && pConfig.channel) {
@@ -597,13 +697,15 @@ function applyPlatformConnection(platform) {
       connector.disconnect();
     }
   } else {
-    connector.disconnect();
+    if (connector.status !== 'disconnected') {
+      connector.disconnect();
+    }
   }
 }
 
 function applyPlatformConnections() {
   for (const platform of Object.keys(connectors)) {
-    applyPlatformConnection(platform);
+    applyPlatformConnection(platform, false);
   }
 }
 
