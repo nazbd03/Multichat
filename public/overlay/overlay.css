@@ -118,6 +118,9 @@ html, body {
   width: var(--chat-card-width, 100%);
   zoom: var(--chat-scale, 1);
   word-break: break-word;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
   will-change: transform, opacity;
 }
 

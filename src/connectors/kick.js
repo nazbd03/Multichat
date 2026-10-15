@@ -1,18 +1,32 @@
 const EventEmitter = require('events');
 const WebSocket = require('ws');
+const crypto = require('crypto');
 
-const KICK_PUSHER_URL = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
+const KICK_HEADERS = {
+  'User-Agent': 'Kick: Live Streaming/3.0.0 (com.kick.mobile; build:400; iOS 17.5.1)',
+  'Accept': 'application/json'
+};
+
+const KICK_REALTIME_HEADERS = {
+  ...KICK_HEADERS,
+  'Referer': 'https://kick.com',
+  'Content-Type': 'application/json',
+  'x-app-platform': 'web'
+};
 
 class KickConnector extends EventEmitter {
   constructor() {
     super();
     this.ws = null;
     this.channel = '';
+    this.channelId = null;
     this.chatroomId = null;
+    this.clientId = crypto.randomUUID ? crypto.randomUUID() : ('kc_' + Math.random().toString(36).substring(2, 12));
     this.status = 'disconnected';
     this.shouldReconnect = false;
     this.reconnectTimer = null;
     this.pingTimer = null;
+    this.reconnectAttempts = 0;
     this.chatroomCache = {};
     this.avatarCache = new Map();
     this.lastError = null;
@@ -21,7 +35,7 @@ class KickConnector extends EventEmitter {
 
   isDuplicate(id, dedupeKey) {
     const now = Date.now();
-    if (this.seenMessageIds.size > 600) {
+    if (this.seenMessageIds.size > 800) {
       for (const [k, ts] of this.seenMessageIds.entries()) {
         if (now - ts > 60000) this.seenMessageIds.delete(k);
       }
@@ -31,7 +45,7 @@ class KickConnector extends EventEmitter {
     }
     if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
       const last = this.seenMessageIds.get(dedupeKey);
-      if (now - last < 8000) {
+      if (now - last < 10000) {
         return true;
       }
     }
@@ -60,22 +74,21 @@ class KickConnector extends EventEmitter {
     this.setStatus('connecting');
 
     try {
-      // 1. Resolve chatroom ID (with cache support)
-      let chatroomId = this.chatroomCache[this.channel];
-      if (!chatroomId) {
-        chatroomId = await this.resolveChatroomId(this.channel);
-      }
-
-      if (!chatroomId) {
+      // 1. Resolve channel metadata & chatroom ID
+      const resolved = await this.resolveChannelInfo(this.channel);
+      if (!resolved || !resolved.chatroomId) {
         throw new Error(`Canal "${this.channel}" no encontrado en Kick`);
       }
 
-      this.chatroomId = chatroomId;
-      this.chatroomCache[this.channel] = chatroomId;
-      console.log(`[Kick] Chatroom ID obtenido para "${this.channel}": ${chatroomId}`);
+      this.channelId = resolved.channelId;
+      this.chatroomId = resolved.chatroomId;
+      console.log(`[Kick] Conectando a canal "${this.channel}" (Channel: ${this.channelId}, Chatroom: ${this.chatroomId})`);
 
-      // 2. Connect to Pusher
-      this.connectWebSocket();
+      // 2. Negotiate Centrifugo token and WS endpoint
+      const realtimeInfo = await this.negotiateRealtime(this.channelId);
+
+      // 3. Connect via Centrifugo WebSocket
+      this.connectWebSocket(realtimeInfo.wsUrl, realtimeInfo.token);
     } catch (err) {
       console.error('[Kick] Connection error:', err.message);
       this.setStatus('error', err.message);
@@ -85,129 +98,217 @@ class KickConnector extends EventEmitter {
     }
   }
 
-  async resolveChatroomId(channel) {
-    // If user entered a number directly (chatroom ID)
+  async resolveChannelInfo(channel) {
+    // Direct chatroom number entered
     if (/^\d+$/.test(channel)) {
-      return parseInt(channel, 10);
+      const chatroomId = parseInt(channel, 10);
+      return { channelId: chatroomId, chatroomId };
     }
 
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-    };
-
-    // 1. Try kick public v2 API
-    try {
-      const res = await fetch(`https://kick.com/api/v2/channels/${channel}`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user && data.user.profile_pic) {
-          this.avatarCache.set(channel.toLowerCase(), data.user.profile_pic);
-        }
-        if (data.chatroom && data.chatroom.id) {
-          return data.chatroom.id;
-        }
-      } else if (res.status === 404) {
-        throw new Error(`Canal "${channel}" no existe en Kick`);
-      }
-    } catch (e) {
-      if (e.message.includes('no existe')) throw e;
+    if (this.chatroomCache[channel]) {
+      return this.chatroomCache[channel];
     }
 
-    // 2. Try kick public v1 API
-    try {
-      const res = await fetch(`https://kick.com/api/v1/channels/${channel}`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.chatroom && data.chatroom.id) {
-          return data.chatroom.id;
-        }
-      }
-    } catch (e) {}
+    // Try kick mobile-authorized API endpoints (v1 then v2)
+    const endpoints = [
+      `https://kick.com/api/v1/channels/${channel}`,
+      `https://kick.com/api/v2/channels/${channel}`
+    ];
 
-    // 3. Fallback: Parse HTML from channel page
-    try {
-      const res = await fetch(`https://kick.com/${channel}`, { headers });
-      if (res.ok) {
-        const html = await res.text();
-        const match = html.match(/"chatroom":\{"id":(\d+)/);
-        if (match) {
-          return parseInt(match[1], 10);
+    for (const url of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(url, { headers: KICK_HEADERS, signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          const channelId = data.id || data.channel_id;
+          const chatroomId = data.chatroom?.id || data.chatroom_id;
+          const avatar = data.user?.profile_pic || data.user?.profilepic || data.user?.profile_image || '';
+
+          if (avatar) {
+            this.avatarCache.set(channel.toLowerCase(), avatar);
+          }
+
+          if (chatroomId) {
+            const info = { channelId: channelId || chatroomId, chatroomId };
+            this.chatroomCache[channel] = info;
+            return info;
+          }
+        } else if (res.status === 404) {
+          throw new Error(`Canal "${channel}" no existe en Kick`);
         }
+      } catch (e) {
+        if (e.message.includes('no existe')) throw e;
       }
-    } catch (e) {}
+    }
 
     return null;
   }
 
-  connectWebSocket() {
-    this.ws = new WebSocket(KICK_PUSHER_URL);
+  async negotiateRealtime(channelId) {
+    // 1. Get Centrifugo auth token
+    let token = '';
+    try {
+      const authRes = await fetch('https://web.kick.com/api/v1/realtime/auth/connection', {
+        method: 'POST',
+        headers: KICK_REALTIME_HEADERS,
+        body: JSON.stringify({ client_id: this.clientId }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        token = authData.data?.token || '';
+      }
+    } catch (e) {
+      console.warn('[Kick] Realtime token negotiation warning:', e.message);
+    }
 
-    this.ws.on('open', () => {
+    // 2. Get WebSocket URL for chatroom
+    let wsUrl = 'wss://realtime.us-west-2.platform.kick.com/connection/websocket';
+    try {
+      const connRes = await fetch(`https://web.kick.com/api/v1/realtime/channels/${channelId}/chat/connection`, {
+        method: 'POST',
+        headers: KICK_REALTIME_HEADERS,
+        body: JSON.stringify({
+          client: { id: this.clientId, type: 'web' },
+          capabilities: { accepted_providers: [{ provider: 'centrifugo' }] }
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
+      if (connRes.ok) {
+        const connData = await connRes.json();
+        const found = connData.data?.connections?.find(c => c.provider === 'centrifugo');
+        if (found?.credentials?.url) {
+          wsUrl = found.credentials.url;
+        }
+      }
+    } catch (e) {
+      console.warn('[Kick] Realtime endpoint discovery warning, using fallback:', e.message);
+    }
+
+    return { token, wsUrl };
+  }
+
+  connectWebSocket(wsUrl, token) {
+    try {
+      this.ws = new WebSocket(wsUrl, { headers: { 'User-Agent': KICK_HEADERS['User-Agent'] } });
+
+      this.ws.on('open', () => {
+        // Send Centrifugo connect handshake
+        const connectPayload = {
+          id: 1,
+          connect: token ? { token } : {}
+        };
+        this.ws.send(JSON.stringify(connectPayload));
+
+        // Keep-alive heartbeat ping every 25 seconds
+        clearInterval(this.pingTimer);
+        this.pingTimer = setInterval(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+              this.ws.send('{}');
+            } catch (e) {}
+          }
+        }, 25000);
+      });
+
+      this.ws.on('message', (raw) => {
+        const lines = raw.toString().split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          // Centrifugo ping from server: reply with empty pong '{}'
+          if (trimmed === '{}') {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+              try {
+                this.ws.send('{}');
+              } catch (e) {}
+            }
+            continue;
+          }
+
+          try {
+            const msg = JSON.parse(trimmed);
+            this.handleCentrifugoMessage(msg);
+          } catch (err) {
+            console.error('[Kick] Message parse error:', err.message);
+          }
+        }
+      });
+
+      this.ws.on('error', (err) => {
+        console.error(`[Kick] WS error (${this.channel}):`, err.message);
+        this.setStatus('error', err.message);
+      });
+
+      this.ws.on('close', (code, reason) => {
+        clearInterval(this.pingTimer);
+        if (this.status !== 'disconnected') {
+          console.log(`[Kick] WS cerrado (${this.channel}) code=${code} reason=${reason}`);
+          this.setStatus('disconnected');
+          if (this.shouldReconnect) {
+            this.scheduleReconnect();
+          }
+        }
+      });
+    } catch (err) {
+      console.error('[Kick] WebSocket init error:', err.message);
+      this.setStatus('error', err.message);
+      if (this.shouldReconnect) {
+        this.scheduleReconnect();
+      }
+    }
+  }
+
+  handleCentrifugoMessage(msg) {
+    // 1. Connect response
+    if (msg.id === 1 && msg.connect) {
+      this.reconnectAttempts = 0;
       this.setStatus('connected');
-      // Subscribe to chatroom
+      console.log(`[Kick] Centrifugo conectado exitosamente para "${this.channel}". Suscribiendo a chatrooms.${this.chatroomId}.v2`);
+
+      // Subscribe to chatroom channel
       const subPayload = {
-        event: 'pusher:subscribe',
-        data: {
-          auth: '',
+        id: 2,
+        subscribe: {
           channel: `chatrooms.${this.chatroomId}.v2`
         }
       };
-      this.ws.send(JSON.stringify(subPayload));
-
-      // Pusher ping interval every 30s
-      this.pingTimer = setInterval(() => {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
-        }
-      }, 30000);
-    });
-
-    this.ws.on('message', (data) => {
-      try {
-        const parsed = JSON.parse(data.toString());
-        this.handlePusherMessage(parsed);
-      } catch (err) {
-        console.error('[Kick] Message parse error:', err);
-      }
-    });
-
-    this.ws.on('error', (err) => {
-      console.error(`[Kick] WS error (${this.channel}):`, err.message);
-      this.setStatus('error', err.message);
-    });
-
-    this.ws.on('close', () => {
-      clearInterval(this.pingTimer);
-      if (this.status !== 'disconnected') {
-        this.setStatus('disconnected');
-        if (this.shouldReconnect) {
-          this.scheduleReconnect();
-        }
-      }
-    });
-  }
-
-  handlePusherMessage(payload) {
-    const event = payload.event;
-
-    // Responder al ping del servidor de Pusher para evitar desconexión cada 120 segundos
-    if (event === 'pusher:ping') {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
+        this.ws.send(JSON.stringify(subPayload));
       }
       return;
     }
 
-    if (event === 'pusher:pong') {
+    // 2. Subscription confirmation
+    if (msg.id === 2 && msg.subscribe) {
+      console.log(`[Kick] Suscripción a chat activa para "${this.channel}"`);
       return;
     }
 
-    if (event === 'App\\Events\\ChatMessageEvent') {
-      const chatData = typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data;
-      this.parseChatMessage(chatData).catch(err => console.error('[Kick] Error in parseChatMessage:', err));
-    } else if (event === 'App\\Events\\SubscriptionEvent' || event === 'App\\Events\\GiftedSubscriptionsEvent') {
-      const subData = typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data;
-      this.parseSubscription(event, subData).catch(err => console.error('[Kick] Error in parseSubscription:', err));
+    // 3. Incoming publication message
+    if (msg.push && msg.push.pub && msg.push.pub.data) {
+      const pubData = msg.push.pub.data;
+      const event = pubData.event || msg.push.pub.tags?.event;
+      const rawData = pubData.data;
+      let payload = rawData;
+      if (typeof rawData === 'string') {
+        try {
+          payload = JSON.parse(rawData);
+        } catch (e) {
+          payload = rawData;
+        }
+      }
+
+      if (event === 'App\\Events\\ChatMessageEvent' || event === 'ChatMessageEvent') {
+        this.parseChatMessage(payload).catch(err => console.error('[Kick] Error in parseChatMessage:', err));
+      } else if (event === 'App\\Events\\SubscriptionEvent' || event === 'App\\Events\\GiftedSubscriptionsEvent' || event === 'SubscriptionEvent' || event === 'GiftedSubscriptionsEvent') {
+        this.parseSubscription(event, payload).catch(err => console.error('[Kick] Error in parseSubscription:', err));
+      }
     }
   }
 
@@ -223,7 +324,7 @@ class KickConnector extends EventEmitter {
       const timeoutId = setTimeout(() => controller.abort(), 2000);
       const res = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(key)}`, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        headers: KICK_HEADERS
       });
       clearTimeout(timeoutId);
       if (res.ok) {
@@ -244,8 +345,9 @@ class KickConnector extends EventEmitter {
       const sender = data.sender || {};
       const identity = sender.identity || {};
       const username = sender.username || 'KickUser';
-      const color = identity.color || '#53FC18'; // Kick neon green
+      const color = identity.color || '#53FC18';
       const rawBadges = identity.badges || [];
+      const rawBadgesV2 = identity.badges_v2 || [];
 
       let isOwner = false;
       let isMod = false;
@@ -253,6 +355,7 @@ class KickConnector extends EventEmitter {
       let isVip = false;
 
       const badges = [];
+
       for (const b of rawBadges) {
         const type = (b.type || '').toLowerCase();
         if (type === 'broadcaster' || type === 'host') {
@@ -274,11 +377,32 @@ class KickConnector extends EventEmitter {
         }
       }
 
+      for (const b of rawBadgesV2) {
+        const name = (b.name || '').toLowerCase();
+        if (name === 'broadcaster' || name === 'host') {
+          isOwner = true;
+          if (!badges.some(x => x.type === 'broadcaster')) badges.push({ type: 'broadcaster', label: 'Streamer' });
+        } else if (name === 'moderator') {
+          isMod = true;
+          if (!badges.some(x => x.type === 'moderator')) badges.push({ type: 'moderator', label: 'Mod' });
+        } else if (name === 'subscriber') {
+          isSub = true;
+          if (!badges.some(x => x.type === 'subscriber')) badges.push({ type: 'subscriber', label: 'Sub' });
+        } else if (name === 'vip') {
+          isVip = true;
+          if (!badges.some(x => x.type === 'vip')) badges.push({ type: 'vip', label: 'VIP' });
+        } else if (name === 'verified') {
+          if (!badges.some(x => x.type === 'verified')) badges.push({ type: 'verified', label: 'Verificado' });
+        } else if (name === 'og') {
+          if (!badges.some(x => x.type === 'og')) badges.push({ type: 'og', label: 'OG' });
+        }
+      }
+
       const rawMessage = data.content || '';
       const formattedMessage = this.formatKickEmotes(rawMessage);
 
       const rawMsgId = data.id;
-      const dedupeKey = `${username}:${rawMessage}`;
+      const dedupeKey = `${username.toLowerCase()}:${rawMessage.toLowerCase().trim()}`;
       if (this.isDuplicate(rawMsgId, dedupeKey)) {
         return;
       }
@@ -357,7 +481,6 @@ class KickConnector extends EventEmitter {
   }
 
   formatKickEmotes(message) {
-    // Kick emotes are formatted as [emote:ID:NAME]
     return escapeHtml(message).replace(/\[emote:(\d+):([a-zA-Z0-9_-]+)\]/g, (match, id, name) => {
       const url = `https://files.kick.com/emotes/${id}/fullsize`;
       return `<img class="chat-emote" src="${url}" alt="${name}" title="${name}" />`;
@@ -379,12 +502,14 @@ class KickConnector extends EventEmitter {
 
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
+    this.reconnectAttempts++;
+    const delay = Math.min(3000 * Math.pow(1.5, Math.min(this.reconnectAttempts, 5)), 20000);
     this.reconnectTimer = setTimeout(() => {
       if (this.shouldReconnect && this.channel) {
-        console.log(`[Kick] Reconnecting to channel ${this.channel}...`);
+        console.log(`[Kick] Reintentando conexión con canal "${this.channel}" en ${Math.round(delay / 1000)}s...`);
         this.connect(this.channel);
       }
-    }, 5000);
+    }, delay);
   }
 
   setStatus(status, error = null) {

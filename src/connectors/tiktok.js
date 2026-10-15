@@ -1,5 +1,26 @@
 const EventEmitter = require('events');
+const crypto = require('crypto');
 const { TikTokLiveConnection } = require('tiktok-live-connector');
+
+function extractMsgId(rawMsgId) {
+  if (!rawMsgId) return '';
+  if (typeof rawMsgId === 'string' || typeof rawMsgId === 'number') {
+    return String(rawMsgId).trim();
+  }
+  if (typeof rawMsgId === 'bigint') {
+    return rawMsgId.toString();
+  }
+  if (typeof rawMsgId === 'object') {
+    if (rawMsgId.low !== undefined && rawMsgId.high !== undefined) {
+      return `${rawMsgId.high}_${rawMsgId.low}`;
+    }
+    if (typeof rawMsgId.toString === 'function') {
+      const s = rawMsgId.toString();
+      if (s !== '[object Object]') return s;
+    }
+  }
+  return '';
+}
 
 class TikTokConnector extends EventEmitter {
   constructor() {
@@ -15,21 +36,22 @@ class TikTokConnector extends EventEmitter {
 
   isDuplicate(id, dedupeKey) {
     const now = Date.now();
-    if (this.seenMessageIds.size > 600) {
+    if (this.seenMessageIds.size > 1000) {
       for (const [k, ts] of this.seenMessageIds.entries()) {
         if (now - ts > 60000) this.seenMessageIds.delete(k);
       }
     }
-    if (id && this.seenMessageIds.has(String(id))) {
+    const idStr = id ? String(id).trim() : '';
+    if (idStr && idStr !== '[object Object]' && this.seenMessageIds.has(idStr)) {
       return true;
     }
     if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
       const last = this.seenMessageIds.get(dedupeKey);
-      if (now - last < 8000) {
+      if (now - last < 12000) {
         return true;
       }
     }
-    if (id) this.seenMessageIds.set(String(id), now);
+    if (idStr && idStr !== '[object Object]') this.seenMessageIds.set(idStr, now);
     if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
     return false;
   }
@@ -171,13 +193,18 @@ class TikTokConnector extends EventEmitter {
         }
       }
 
-      const rawMsgId = data.msgId || data.common?.msgId;
-      const dedupeKey = `${handle}:${text}`;
-      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+      const rawMsgId = data.msgId || data.common?.msgId || data.id;
+      const msgIdStr = extractMsgId(rawMsgId);
+      const normUser = (handle || username || 'user').toLowerCase().trim();
+      const normText = (text || '').toLowerCase().trim();
+      const dedupeKey = `${normUser}:${normText}`;
+
+      if (this.isDuplicate(msgIdStr, dedupeKey)) {
         return;
       }
 
-      const stableId = rawMsgId ? `tt_${rawMsgId}` : `tt_${handle}_${Date.now()}`;
+      const textHash = crypto.createHash('md5').update(normText || 'empty').digest('hex').slice(0, 8);
+      const stableId = msgIdStr ? `tt_${msgIdStr}` : `tt_${normUser}_${textHash}`;
 
       const normalizedMsg = {
         id: stableId,
@@ -247,13 +274,17 @@ class TikTokConnector extends EventEmitter {
         formatted += ` <img class="chat-emote chat-gift-icon" src="${giftIcon}" alt="${escapeHtml(giftName)}" />`;
       }
 
-      const rawMsgId = data.msgId || data.common?.msgId;
-      const dedupeKey = `gift:${handle}:${giftName}:${count}`;
-      if (this.isDuplicate(rawMsgId, dedupeKey)) {
+      const rawMsgId = data.msgId || data.common?.msgId || data.id;
+      const msgIdStr = extractMsgId(rawMsgId);
+      const normUser = (handle || username || 'user').toLowerCase().trim();
+      const normGift = (giftName || 'gift').toLowerCase().trim();
+      const dedupeKey = `gift:${normUser}:${normGift}:${count}`;
+
+      if (this.isDuplicate(msgIdStr, dedupeKey)) {
         return;
       }
 
-      const stableId = rawMsgId ? `tt_gift_${rawMsgId}` : `tt_gift_${handle}_${Date.now()}`;
+      const stableId = msgIdStr ? `tt_gift_${msgIdStr}` : `tt_gift_${normUser}_${normGift}_${count}`;
 
       const normalizedMsg = {
         id: stableId,

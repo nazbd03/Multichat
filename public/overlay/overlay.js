@@ -86,11 +86,29 @@
       osc1.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
       osc1.connect(gainNode);
 
+      osc1.onended = () => {
+        try {
+          osc1.disconnect();
+          gainNode.disconnect();
+        } catch (e) {}
+      };
+
       osc1.start(now);
       osc1.stop(now + 0.35);
     } catch (e) {
       console.warn('Audio playback error:', e);
     }
+  }
+
+  function cleanupAudio(audio) {
+    if (!audio) return;
+    try {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.src = '';
+      audio.load();
+    } catch (e) {}
   }
 
   // Text-To-Speech (Strict Single-Stream Sequential Audio Queue)
@@ -101,9 +119,20 @@
 
   function processNextTts() {
     if (isPlayingTts || ttsQueue.length === 0) return;
+
+    // Prevent audio queue flood: drop older items if backlog grows beyond 4
+    if (ttsQueue.length > 4) {
+      ttsQueue.splice(0, ttsQueue.length - 4);
+    }
+
     isPlayingTts = true;
 
     const item = ttsQueue.shift();
+    if (!item || !item.url) {
+      isPlayingTts = false;
+      return;
+    }
+
     const audio = new Audio(item.url);
     currentAudio = audio;
     const volume = Math.max(0, Math.min(1, (currentConfig.ttsVolume ?? 90) / 100));
@@ -111,10 +140,14 @@
     const speed = Math.max(0.5, Math.min(2.5, parseFloat(currentConfig.ttsSpeed || currentConfig.ttsRate || 1.0)));
     audio.playbackRate = speed;
 
+    let hasAdvanced = false;
     const advance = () => {
+      if (hasAdvanced) return;
+      hasAdvanced = true;
+      cleanupAudio(currentAudio);
       currentAudio = null;
       isPlayingTts = false;
-      setTimeout(processNextTts, 150);
+      setTimeout(processNextTts, 120);
     };
 
     audio.onended = advance;
@@ -127,28 +160,16 @@
 
   function stopAndClearTts() {
     ttsQueue.length = 0;
-    if (currentAudio) {
-      try {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio.src = '';
-      } catch (e) {}
-      currentAudio = null;
-    }
+    cleanupAudio(currentAudio);
+    currentAudio = null;
     isPlayingTts = false;
   }
 
   function skipCurrentTts() {
-    if (currentAudio) {
-      try {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio.src = '';
-      } catch (e) {}
-      currentAudio = null;
-    }
+    cleanupAudio(currentAudio);
+    currentAudio = null;
     isPlayingTts = false;
-    setTimeout(processNextTts, 80);
+    setTimeout(processNextTts, 60);
   }
 
   const recentSpokenTexts = new Map();
@@ -364,6 +385,13 @@
   // Apply configuration to DOM
   function applyConfig(cfg) {
     if (!cfg) return;
+
+    const oldVoice = currentConfig.ttsLang || currentConfig.ttsVoice || '';
+    const newVoice = cfg.overlay?.ttsLang || cfg.overlay?.ttsVoice || '';
+    if (oldVoice && newVoice && oldVoice !== newVoice) {
+      stopAndClearTts();
+    }
+
     currentConfig = { ...currentConfig, ...cfg.overlay };
 
     const root = document.documentElement;
@@ -600,7 +628,7 @@
     // Auto-hide timeout
     const delay = parseInt(currentConfig.autoHideDelay, 10);
     if (!isNaN(delay) && delay > 0) {
-      setTimeout(() => {
+      card._autoHideTimer = setTimeout(() => {
         removeMessageWithExitAnim(card);
       }, delay * 1000);
     }
@@ -610,17 +638,20 @@
 
   function removeMessageWithExitAnim(element) {
     if (!element || element.dataset.exiting === 'true') return;
+    if (element._autoHideTimer) {
+      clearTimeout(element._autoHideTimer);
+      element._autoHideTimer = null;
+    }
     element.dataset.exiting = 'true';
     element.style.animation = 'none';
     element.classList.remove('anim-slide-left', 'anim-slide-up', 'anim-pop-in', 'anim-bounce-in', 'anim-flip-3d', 'anim-p5-slash', 'anim-fade', 'anim-glitch-cyber', 'anim-vortex-warp');
-    void element.offsetWidth;
     const exitAnim = currentConfig.exitAnimation || 'fade-out';
     element.classList.add(`exit-${exitAnim}`);
     setTimeout(() => {
       if (element && element.parentNode) {
         element.parentNode.removeChild(element);
       }
-    }, 460);
+    }, 420);
   }
 
   function formatP5Username(name) {
@@ -681,7 +712,7 @@
         return;
       }
       receivedMessageIds.add(msg.id);
-      if (receivedMessageIds.size > 500) {
+      if (receivedMessageIds.size > 200) {
         const firstKey = receivedMessageIds.values().next().value;
         receivedMessageIds.delete(firstKey);
       }
@@ -701,14 +732,37 @@
       chatContainer.appendChild(element);
     }
 
-    // Prune excessive messages with exit animation
     const max = currentConfig.maxMessages || 15;
+
+    // 1. Immediately purge any already-exiting messages if container is overflowing
+    const children = Array.from(chatContainer.children);
+    if (children.length > max + 2) {
+      for (const child of children) {
+        if (child.dataset.exiting === 'true') {
+          if (child._autoHideTimer) clearTimeout(child._autoHideTimer);
+          child.remove();
+        }
+      }
+    }
+
+    // 2. Prune active messages with exit animation
     const getActiveMessages = () => Array.from(chatContainer.children).filter(el => !el.dataset.exiting);
     while (getActiveMessages().length > max) {
       const active = getActiveMessages();
       const toRemove = currentConfig.messageDirection === 'top-down' ? active[active.length - 1] : active[0];
       if (toRemove) {
         removeMessageWithExitAnim(toRemove);
+      } else {
+        break;
+      }
+    }
+
+    // 3. Absolute hard ceiling: never allow DOM elements to exceed max + 4
+    while (chatContainer.children.length > max + 4) {
+      const oldest = currentConfig.messageDirection === 'top-down' ? chatContainer.lastElementChild : chatContainer.firstElementChild;
+      if (oldest) {
+        if (oldest._autoHideTimer) clearTimeout(oldest._autoHideTimer);
+        oldest.remove();
       } else {
         break;
       }
@@ -733,7 +787,11 @@
   });
 
   socket.on('clear-chat', () => {
+    Array.from(chatContainer.children).forEach(el => {
+      if (el._autoHideTimer) clearTimeout(el._autoHideTimer);
+    });
     chatContainer.innerHTML = '';
+    stopAndClearTts();
   });
 
   // TTS Queue controls from dashboard or shortcut

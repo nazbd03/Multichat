@@ -148,28 +148,31 @@ const recentServerMessageIds = new Map();
 function isDuplicateServerMessage(msg) {
   if (!msg) return true;
   const now = Date.now();
-  if (recentServerMessageIds.size > 800) {
+  if (recentServerMessageIds.size > 1000) {
     for (const [k, ts] of recentServerMessageIds.entries()) {
-      if (now - ts > 30000) recentServerMessageIds.delete(k);
+      if (now - ts > 60000) recentServerMessageIds.delete(k);
     }
   }
 
   // Deduplicate by unique message ID
-  if (msg.id && recentServerMessageIds.has(String(msg.id))) {
+  const idStr = msg.id ? String(msg.id).trim() : '';
+  if (idStr && idStr !== '[object Object]' && recentServerMessageIds.has(idStr)) {
     return true;
   }
 
-  // Deduplicate identical message text from same user within 4 seconds
-  const contentKey = `${msg.platform}:${msg.user?.name || ''}:${msg.message || ''}`;
-  if (recentServerMessageIds.has(contentKey)) {
+  // Deduplicate identical message text from same user within 10 seconds
+  const normUser = (msg.user?.name || msg.user?.displayName || '').toLowerCase().trim();
+  const normMsg = (msg.message || '').toLowerCase().trim();
+  const contentKey = `${msg.platform}:${normUser}:${normMsg}`;
+  if (contentKey && recentServerMessageIds.has(contentKey)) {
     const lastSeen = recentServerMessageIds.get(contentKey);
-    if (now - lastSeen < 4000) {
+    if (now - lastSeen < 10000) {
       return true;
     }
   }
 
-  if (msg.id) recentServerMessageIds.set(String(msg.id), now);
-  recentServerMessageIds.set(contentKey, now);
+  if (idStr && idStr !== '[object Object]') recentServerMessageIds.set(idStr, now);
+  if (contentKey) recentServerMessageIds.set(contentKey, now);
   return false;
 }
 
@@ -293,6 +296,28 @@ function cleanSpeechText(text) {
     .trim();
 }
 
+// High-performance LRU memory cache for synthesized TTS audios
+const ttsAudioCache = new Map();
+const MAX_TTS_CACHE = 400;
+
+function setTtsCache(key, buffer, contentType) {
+  if (ttsAudioCache.size >= MAX_TTS_CACHE) {
+    const oldestKey = ttsAudioCache.keys().next().value;
+    ttsAudioCache.delete(oldestKey);
+  }
+  ttsAudioCache.set(key, { buffer, contentType, timestamp: Date.now() });
+}
+
+function getTtsCache(key) {
+  const item = ttsAudioCache.get(key);
+  if (!item) return null;
+  if (Date.now() - item.timestamp > 86400000) {
+    ttsAudioCache.delete(key);
+    return null;
+  }
+  return item;
+}
+
 // TTS Speech Audio Endpoint with High-Definition Streamer Voices & Accents
 app.get('/api/tts', async (req, res) => {
   try {
@@ -363,6 +388,15 @@ app.get('/api/tts', async (req, res) => {
       }
     }
 
+    // Check memory cache for identical voice + speechText
+    const cacheKey = `${voice}:${shouldTranslate ? '1' : '0'}:${speechText.toLowerCase().trim()}`;
+    const cached = getTtsCache(cacheKey);
+    if (cached) {
+      res.setHeader('Content-Type', cached.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(cached.buffer);
+    }
+
     // 1. Fish Audio Character Voices (Rick Sanchez Latino, Goku Latino)
     const FISH_MODELS = {
       'rick_latino': 'f75ae6efbe9945c19be01e233e045d0e',
@@ -375,33 +409,41 @@ app.get('/api/tts', async (req, res) => {
       const DEFAULT_FISH_KEY = 'sk-fish-TCVJK8dpgPADjTHb9FGQPHpNCM_n_cKetZEtfSc2ZCE';
       const fishApiKey = (config.overlay && config.overlay.fishApiKey && config.overlay.fishApiKey.trim()) || DEFAULT_FISH_KEY;
       const modelId = FISH_MODELS[voice];
-      try {
-        const fishRes = await fetch('https://api.fish.audio/v1/tts', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + fishApiKey,
-            'Content-Type': 'application/json',
-            'model': 's2.1-pro-free'
-          },
-          body: JSON.stringify({
-            text: speechText.slice(0, 250),
-            reference_id: modelId,
-            format: 'mp3',
-            model: 's2.1-pro-free'
-          }),
-          signal: AbortSignal.timeout(5000)
-        });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const fishRes = await fetch('https://api.fish.audio/v1/tts', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + fishApiKey,
+              'Content-Type': 'application/json',
+              'model': 's2.1-pro-free'
+            },
+            body: JSON.stringify({
+              text: speechText.slice(0, 250),
+              reference_id: modelId,
+              format: 'mp3',
+              model: 's2.1-pro-free'
+            }),
+            signal: AbortSignal.timeout(7500)
+          });
 
-        if (fishRes.ok) {
-          res.setHeader('Content-Type', 'audio/mpeg');
-          res.setHeader('Cache-Control', 'no-cache');
-          const arrayBuf = await fishRes.arrayBuffer();
-          return res.send(Buffer.from(arrayBuf));
-        } else {
-          console.warn('[TTS] Fish Audio status error:', fishRes.status);
+          if (fishRes.ok) {
+            const arrayBuf = await fishRes.arrayBuffer();
+            const buf = Buffer.from(arrayBuf);
+            setTtsCache(cacheKey, buf, 'audio/mpeg');
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'no-cache');
+            return res.send(buf);
+          } else {
+            console.warn(`[TTS] Fish Audio status error (${fishRes.status}), intento ${attempt + 1}`);
+          }
+        } catch (fishErr) {
+          console.warn(`[TTS] Fish Audio intento ${attempt + 1} error:`, fishErr.message);
+          if (attempt === 0) {
+            await new Promise(r => setTimeout(r, 400));
+            continue;
+          }
         }
-      } catch (fishErr) {
-        console.warn('[TTS] Fish Audio error:', fishErr.message);
       }
       voice = 'es_mx_002'; // Fallback to Mexican voice if Fish Audio fails
     }
@@ -417,7 +459,7 @@ app.get('/api/tts', async (req, res) => {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
           },
           body: postData,
-          signal: AbortSignal.timeout(4500)
+          signal: AbortSignal.timeout(5000)
         });
 
         if (ttsRes.ok) {
@@ -425,13 +467,15 @@ app.get('/api/tts', async (req, res) => {
           if (ttsData && ttsData.URL) {
             const mp3Res = await fetch(ttsData.URL, {
               headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-              signal: AbortSignal.timeout(4500)
+              signal: AbortSignal.timeout(5000)
             });
             if (mp3Res.ok) {
+              const arrayBuf = await mp3Res.arrayBuffer();
+              const buf = Buffer.from(arrayBuf);
+              setTtsCache(cacheKey, buf, 'audio/mpeg');
               res.setHeader('Content-Type', 'audio/mpeg');
               res.setHeader('Cache-Control', 'no-cache');
-              const arrayBuf = await mp3Res.arrayBuffer();
-              return res.send(Buffer.from(arrayBuf));
+              return res.send(buf);
             }
           }
         }
@@ -449,12 +493,13 @@ app.get('/api/tts', async (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: speechText.slice(0, 180), voice: voice }),
-            signal: AbortSignal.timeout(4500)
+            signal: AbortSignal.timeout(5000)
           });
           if (ttRes.ok) {
             const ttData = await ttRes.json();
             if (ttData.success && ttData.data) {
               const buffer = Buffer.from(ttData.data, 'base64');
+              setTtsCache(cacheKey, buffer, 'audio/mpeg');
               res.setHeader('Content-Type', 'audio/mpeg');
               res.setHeader('Cache-Control', 'no-cache');
               return res.send(buffer);
@@ -462,7 +507,7 @@ app.get('/api/tts', async (req, res) => {
           }
         } catch (ttErr) {
           if (attempt === 0) {
-            await new Promise(r => setTimeout(r, 250));
+            await new Promise(r => setTimeout(r, 300));
             continue;
           }
           console.warn('[TTS] Primary voice engine failed, using fallback:', ttErr.message);
@@ -488,10 +533,12 @@ app.get('/api/tts', async (req, res) => {
     });
 
     if (gRes.ok) {
+      const arrayBuf = await gRes.arrayBuffer();
+      const buf = Buffer.from(arrayBuf);
+      setTtsCache(cacheKey, buf, 'audio/mpeg');
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-cache');
-      const arrayBuf = await gRes.arrayBuffer();
-      return res.send(Buffer.from(arrayBuf));
+      return res.send(buf);
     }
 
     res.status(502).send('Error generating TTS');
@@ -599,18 +646,13 @@ io.on('connection', (socket) => {
   socket.emit('config-update', config);
   socket.emit('status-all', statuses);
 
-  // Client requests config update
+  // Client requests config update (Overlay / Themes / TTS / Anti-Spam)
   socket.on('update-config', (newConfig) => {
     try {
-      const prevPlatforms = JSON.stringify(config.platforms);
       config = saveConfig(newConfig);
       io.emit('config-update', config);
-      const newPlatforms = JSON.stringify(config.platforms);
-      // ONLY apply platform connections if platforms configuration actually changed!
+      // NOTE: Platform connections are strictly toggled via 'toggle-platform'.
       // Overlay settings (TTS voice, theme, sliders, etc.) NEVER disrupt live platform connections!
-      if (prevPlatforms !== newPlatforms) {
-        applyPlatformConnections();
-      }
     } catch (err) {
       socket.emit('error-msg', 'Error al guardar la configuración');
     }

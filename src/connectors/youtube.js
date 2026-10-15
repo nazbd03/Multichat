@@ -14,21 +14,22 @@ class YouTubeConnector extends EventEmitter {
 
   isDuplicate(id, dedupeKey) {
     const now = Date.now();
-    if (this.seenMessageIds.size > 600) {
+    if (this.seenMessageIds.size > 800) {
       for (const [k, ts] of this.seenMessageIds.entries()) {
         if (now - ts > 60000) this.seenMessageIds.delete(k);
       }
     }
-    if (id && this.seenMessageIds.has(String(id))) {
+    const idStr = id ? String(id).trim() : '';
+    if (idStr && this.seenMessageIds.has(idStr)) {
       return true;
     }
     if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
       const last = this.seenMessageIds.get(dedupeKey);
-      if (now - last < 8000) {
+      if (now - last < 10000) {
         return true;
       }
     }
-    if (id) this.seenMessageIds.set(String(id), now);
+    if (idStr) this.seenMessageIds.set(idStr, now);
     if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
     return false;
   }
@@ -189,7 +190,7 @@ class YouTubeConnector extends EventEmitter {
       }
 
       const rawMsgId = item.id;
-      const dedupeKey = `${username}:${rawText}`;
+      const dedupeKey = `${(username || '').toLowerCase().trim()}:${(rawText || '').toLowerCase().trim()}`;
       if (this.isDuplicate(rawMsgId, dedupeKey)) {
         return;
       }
