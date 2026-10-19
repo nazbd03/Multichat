@@ -35,22 +35,28 @@ class KickConnector extends EventEmitter {
 
   isDuplicate(id, dedupeKey) {
     const now = Date.now();
-    if (this.seenMessageIds.size > 800) {
+    if (this.seenMessageIds.size > 1000) {
       for (const [k, ts] of this.seenMessageIds.entries()) {
         if (now - ts > 60000) this.seenMessageIds.delete(k);
       }
     }
-    if (id && this.seenMessageIds.has(String(id))) {
-      return true;
-    }
-    if (dedupeKey && this.seenMessageIds.has(dedupeKey)) {
-      const last = this.seenMessageIds.get(dedupeKey);
-      if (now - last < 10000) {
+    const idStr = id ? String(id).trim() : '';
+    if (idStr) {
+      if (this.seenMessageIds.has(idStr)) {
         return true;
       }
+      this.seenMessageIds.set(idStr, now);
+      return false;
     }
-    if (id) this.seenMessageIds.set(String(id), now);
-    if (dedupeKey) this.seenMessageIds.set(dedupeKey, now);
+    if (dedupeKey) {
+      if (this.seenMessageIds.has(dedupeKey)) {
+        const last = this.seenMessageIds.get(dedupeKey);
+        if (now - last < 2000) {
+          return true;
+        }
+      }
+      this.seenMessageIds.set(dedupeKey, now);
+    }
     return false;
   }
 
@@ -75,9 +81,14 @@ class KickConnector extends EventEmitter {
 
     try {
       // 1. Resolve channel metadata & chatroom ID
-      const resolved = await this.resolveChannelInfo(this.channel);
+      let resolved = await this.resolveChannelInfo(this.channel);
       if (!resolved || !resolved.chatroomId) {
-        throw new Error(`Canal "${this.channel}" no encontrado en Kick`);
+        if (this.channelId && this.chatroomId) {
+          console.warn(`[Kick] Usando IDs cacheados para "${this.channel}": Channel=${this.channelId}, Chatroom=${this.chatroomId}`);
+          resolved = { channelId: this.channelId, chatroomId: this.chatroomId };
+        } else {
+          throw new Error(`Canal "${this.channel}" no encontrado en Kick`);
+        }
       }
 
       this.channelId = resolved.channelId;
@@ -149,6 +160,7 @@ class KickConnector extends EventEmitter {
   }
 
   async negotiateRealtime(channelId) {
+    this.clientId = crypto.randomUUID ? crypto.randomUUID() : ('kc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
     // 1. Get Centrifugo auth token
     let token = '';
     try {
@@ -194,28 +206,45 @@ class KickConnector extends EventEmitter {
 
   connectWebSocket(wsUrl, token) {
     try {
-      this.ws = new WebSocket(wsUrl, { headers: { 'User-Agent': KICK_HEADERS['User-Agent'] } });
+      const currentWs = new WebSocket(wsUrl, { headers: { 'User-Agent': KICK_HEADERS['User-Agent'] } });
+      this.ws = currentWs;
+      let lastActivity = Date.now();
 
-      this.ws.on('open', () => {
+      currentWs.on('open', () => {
+        if (this.ws !== currentWs) return;
+        lastActivity = Date.now();
         // Send Centrifugo connect handshake
         const connectPayload = {
           id: 1,
           connect: token ? { token } : {}
         };
-        this.ws.send(JSON.stringify(connectPayload));
+        currentWs.send(JSON.stringify(connectPayload));
 
-        // Keep-alive heartbeat ping every 25 seconds
+        // Keep-alive heartbeat ping every 20 seconds & zombie watchdog
         clearInterval(this.pingTimer);
         this.pingTimer = setInterval(() => {
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          if (this.ws !== currentWs) return;
+
+          // Check for dead zombie connection (no frame received in 45 seconds)
+          if (Date.now() - lastActivity > 45000) {
+            console.warn(`[Kick] Sin respuesta de Centrifugo en "${this.channel}" por 45s. Forzando reconexión limpia...`);
             try {
-              this.ws.send('{}');
+              currentWs.terminate();
+            } catch (e) {}
+            return;
+          }
+
+          if (currentWs.readyState === WebSocket.OPEN) {
+            try {
+              currentWs.send('{}');
             } catch (e) {}
           }
-        }, 25000);
+        }, 20000);
       });
 
-      this.ws.on('message', (raw) => {
+      currentWs.on('message', (raw) => {
+        if (this.ws !== currentWs) return;
+        lastActivity = Date.now();
         const lines = raw.toString().split('\n');
         for (const line of lines) {
           const trimmed = line.trim();
@@ -223,9 +252,9 @@ class KickConnector extends EventEmitter {
 
           // Centrifugo ping from server: reply with empty pong '{}'
           if (trimmed === '{}') {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            if (currentWs.readyState === WebSocket.OPEN) {
               try {
-                this.ws.send('{}');
+                currentWs.send('{}');
               } catch (e) {}
             }
             continue;
@@ -240,19 +269,19 @@ class KickConnector extends EventEmitter {
         }
       });
 
-      this.ws.on('error', (err) => {
+      currentWs.on('error', (err) => {
+        if (this.ws !== currentWs) return;
         console.error(`[Kick] WS error (${this.channel}):`, err.message);
         this.setStatus('error', err.message);
       });
 
-      this.ws.on('close', (code, reason) => {
+      currentWs.on('close', (code, reason) => {
+        if (this.ws !== currentWs) return;
         clearInterval(this.pingTimer);
-        if (this.status !== 'disconnected') {
-          console.log(`[Kick] WS cerrado (${this.channel}) code=${code} reason=${reason}`);
-          this.setStatus('disconnected');
-          if (this.shouldReconnect) {
-            this.scheduleReconnect();
-          }
+        console.log(`[Kick] WS cerrado (${this.channel}) code=${code} reason=${reason}`);
+        this.setStatus('disconnected');
+        if (this.shouldReconnect) {
+          this.scheduleReconnect();
         }
       });
     } catch (err) {
@@ -407,7 +436,7 @@ class KickConnector extends EventEmitter {
         return;
       }
 
-      let avatar = sender.profile_pic 
+      const avatar = sender.profile_pic 
         || sender.profile_thumb 
         || sender.profile_image 
         || sender.avatar 
@@ -415,7 +444,8 @@ class KickConnector extends EventEmitter {
         || '';
 
       if (!avatar) {
-        avatar = await this.resolveAvatar(username);
+        // Resolve in background without blocking instant chat delivery
+        this.resolveAvatar(username).catch(() => {});
       }
 
       const stableId = rawMsgId ? `kick_${rawMsgId}` : `kick_${username}_${Date.now()}`;
@@ -451,9 +481,9 @@ class KickConnector extends EventEmitter {
       const username = data.username || (data.gifter && data.gifter.username) || 'KickUser';
       const isGift = eventType.includes('Gifted');
       const count = data.gift_count || 1;
-      let avatar = data.profile_pic || data.profile_thumb || this.avatarCache.get(username.toLowerCase()) || '';
+      const avatar = data.profile_pic || data.profile_thumb || this.avatarCache.get(username.toLowerCase()) || '';
       if (!avatar) {
-        avatar = await this.resolveAvatar(username);
+        this.resolveAvatar(username).catch(() => {});
       }
 
       const normalizedMsg = {
@@ -493,6 +523,7 @@ class KickConnector extends EventEmitter {
     clearInterval(this.pingTimer);
     if (this.ws) {
       try {
+        this.ws.removeAllListeners();
         this.ws.close();
       } catch (e) {}
       this.ws = null;
@@ -503,7 +534,7 @@ class KickConnector extends EventEmitter {
   scheduleReconnect() {
     clearTimeout(this.reconnectTimer);
     this.reconnectAttempts++;
-    const delay = Math.min(3000 * Math.pow(1.5, Math.min(this.reconnectAttempts, 5)), 20000);
+    const delay = Math.min(1500 * Math.max(1, this.reconnectAttempts), 8000);
     this.reconnectTimer = setTimeout(() => {
       if (this.shouldReconnect && this.channel) {
         console.log(`[Kick] Reintentando conexión con canal "${this.channel}" en ${Math.round(delay / 1000)}s...`);

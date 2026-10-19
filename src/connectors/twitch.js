@@ -8,6 +8,7 @@ class TwitchConnector extends EventEmitter {
     this.channel = '';
     this.status = 'disconnected';
     this.reconnectTimer = null;
+    this.pingTimer = null;
     this.shouldReconnect = false;
     this.avatarCache = new Map();
     this.lastError = null;
@@ -46,45 +47,65 @@ class TwitchConnector extends EventEmitter {
     this.resolveAvatar(this.channel).catch(() => {});
 
     try {
-      this.ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+      const currentWs = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+      this.ws = currentWs;
 
-      this.ws.on('open', () => {
+      currentWs.on('open', () => {
+        if (this.ws !== currentWs) return;
         this.setStatus('connected');
         const anonNick = `justinfan${Math.floor(10000 + Math.random() * 89999)}`;
-        this.ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-        this.ws.send('PASS SCHMOOPIE');
-        this.ws.send(`NICK ${anonNick}`);
-        this.ws.send(`JOIN #${this.channel}`);
+        currentWs.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+        currentWs.send('PASS SCHMOOPIE');
+        currentWs.send(`NICK ${anonNick}`);
+        currentWs.send(`JOIN #${this.channel}`);
+
+        // Client-side heartbeat ping every 45s to keep connection alive
+        clearInterval(this.pingTimer);
+        this.pingTimer = setInterval(() => {
+          if (this.ws === currentWs && currentWs.readyState === WebSocket.OPEN) {
+            try {
+              currentWs.send('PING :tmi.twitch.tv');
+            } catch (e) {}
+          }
+        }, 45000);
       });
 
-      this.ws.on('message', (data) => {
+      currentWs.on('message', (data) => {
+        if (this.ws !== currentWs) return;
         const raw = data.toString();
         this.handleRawMessage(raw);
       });
 
-      this.ws.on('error', (err) => {
+      currentWs.on('error', (err) => {
+        if (this.ws !== currentWs) return;
         console.error(`[Twitch] Error (${this.channel}):`, err.message);
         this.setStatus('error', err.message);
       });
 
-      this.ws.on('close', () => {
-        if (this.status !== 'disconnected') {
-          this.setStatus('disconnected');
-          if (this.shouldReconnect) {
-            this.scheduleReconnect();
-          }
+      currentWs.on('close', () => {
+        if (this.ws !== currentWs) return;
+        clearInterval(this.pingTimer);
+        console.log(`[Twitch] Conexión cerrada para #${this.channel}`);
+        this.setStatus('disconnected');
+        if (this.shouldReconnect) {
+          this.scheduleReconnect();
         }
       });
     } catch (err) {
       this.setStatus('error', err.message);
+      if (this.shouldReconnect) {
+        this.scheduleReconnect();
+      }
     }
   }
 
   disconnect() {
     this.shouldReconnect = false;
     clearTimeout(this.reconnectTimer);
+    clearInterval(this.pingTimer);
     if (this.ws) {
       try {
+        this.ws.removeAllListeners();
         this.ws.close();
       } catch (e) {}
       this.ws = null;

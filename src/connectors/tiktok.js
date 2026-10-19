@@ -95,11 +95,9 @@ class TikTokConnector extends EventEmitter {
 
       this.connection.on('disconnected', () => {
         console.log(`[TikTok] Desconectado de @${this.username}`);
-        if (this.status !== 'disconnected') {
-          this.setStatus('disconnected');
-          if (this.shouldReconnect) {
-            this.scheduleReconnect(15000, false);
-          }
+        this.setStatus('disconnected');
+        if (this.shouldReconnect) {
+          this.scheduleReconnect(12000, false);
         }
       });
 
@@ -325,6 +323,7 @@ class TikTokConnector extends EventEmitter {
     clearTimeout(this.reconnectTimer);
     if (this.connection) {
       try {
+        this.connection.removeAllListeners();
         this.connection.disconnect();
       } catch (e) {}
       this.connection = null;

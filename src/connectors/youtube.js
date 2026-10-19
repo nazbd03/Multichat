@@ -231,6 +231,7 @@ class YouTubeConnector extends EventEmitter {
     clearTimeout(this.reconnectTimer);
     if (this.liveChat) {
       try {
+        this.liveChat.removeAllListeners();
         this.liveChat.stop();
       } catch (e) {}
       this.liveChat = null;

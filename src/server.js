@@ -154,25 +154,29 @@ function isDuplicateServerMessage(msg) {
     }
   }
 
-  // Deduplicate by unique message ID
+  // Deduplicate by unique message ID (Kick, Twitch, YouTube provide unique IDs)
   const idStr = msg.id ? String(msg.id).trim() : '';
-  if (idStr && idStr !== '[object Object]' && recentServerMessageIds.has(idStr)) {
-    return true;
-  }
-
-  // Deduplicate identical message text from same user within 10 seconds
-  const normUser = (msg.user?.name || msg.user?.displayName || '').toLowerCase().trim();
-  const normMsg = (msg.message || '').toLowerCase().trim();
-  const contentKey = `${msg.platform}:${normUser}:${normMsg}`;
-  if (contentKey && recentServerMessageIds.has(contentKey)) {
-    const lastSeen = recentServerMessageIds.get(contentKey);
-    if (now - lastSeen < 10000) {
+  if (idStr && idStr !== '[object Object]') {
+    if (recentServerMessageIds.has(idStr)) {
       return true;
     }
+    recentServerMessageIds.set(idStr, now);
   }
 
-  if (idStr && idStr !== '[object Object]') recentServerMessageIds.set(idStr, now);
-  if (contentKey) recentServerMessageIds.set(contentKey, now);
+  // Only apply text-based deduplication for dual webhook streams or messages without unique IDs
+  if (!idStr || msg.platform === 'tiktok') {
+    const normUser = (msg.user?.displayName || msg.user?.name || '').toLowerCase().trim();
+    const normMsg = (msg.message || '').toLowerCase().trim();
+    const contentKey = `${msg.platform}:${normUser}:${normMsg}`;
+    if (contentKey && recentServerMessageIds.has(contentKey)) {
+      const lastSeen = recentServerMessageIds.get(contentKey);
+      if (now - lastSeen < 3000) {
+        return true;
+      }
+    }
+    if (contentKey) recentServerMessageIds.set(contentKey, now);
+  }
+
   return false;
 }
 
@@ -188,7 +192,7 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
     const rawMsgId = data.id || data.msgId;
 
     if (giftName) {
-      const stableId = rawMsgId ? `tt_tf_gift_${rawMsgId}` : `tt_tf_gift_${username}_${Date.now()}`;
+      const stableId = rawMsgId ? `tt_gift_${rawMsgId}` : `tt_gift_${username.toLowerCase()}_${giftName.toLowerCase()}_${count}`;
       const normalized = {
         id: stableId,
         platform: 'tiktok',
@@ -217,7 +221,7 @@ app.post(['/api/tikfinity', '/api/tiktok/webhook'], (req, res) => {
     }
 
     if (text) {
-      const stableId = rawMsgId ? `tt_tf_${rawMsgId}` : `tt_tf_${username}_${Date.now()}`;
+      const stableId = rawMsgId ? `tt_${rawMsgId}` : `tt_${username.toLowerCase()}_${text.toLowerCase().trim()}`;
       const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const normalized = {
         id: stableId,
@@ -292,6 +296,16 @@ function cleanSpeechText(text) {
   return text
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu, '')
     .replace(/(?:https?:\/\/|www\.)\S+/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sanitizeForPolly(text) {
+  if (!text) return '';
+  return text
+    .replace(/<3/g, ' corazón ')
+    .replace(/&/g, ' y ')
+    .replace(/[<>"']/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -450,39 +464,50 @@ app.get('/api/tts', async (req, res) => {
 
     // 2. Enrique Voice (Classic Streamer Amazon Polly voice)
     if (voice === 'enrique' || voice === 'polly_enrique') {
-      try {
-        const postData = `msg=${encodeURIComponent(speechText.slice(0, 250))}&lang=Enrique&source=ttsmp3`;
-        const ttsRes = await fetch('https://ttsmp3.com/makemp3_new.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-          },
-          body: postData,
-          signal: AbortSignal.timeout(5000)
-        });
-
-        if (ttsRes.ok) {
-          const ttsData = await ttsRes.json();
-          if (ttsData && ttsData.URL) {
-            const mp3Res = await fetch(ttsData.URL, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-              signal: AbortSignal.timeout(5000)
+      const pollyText = sanitizeForPolly(speechText).slice(0, 250);
+      if (pollyText) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const postData = `msg=${encodeURIComponent(pollyText)}&lang=Enrique&source=ttsmp3`;
+            const ttsRes = await fetch('https://ttsmp3.com/makemp3_new.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+              },
+              body: postData,
+              signal: AbortSignal.timeout(3500)
             });
-            if (mp3Res.ok) {
-              const arrayBuf = await mp3Res.arrayBuffer();
-              const buf = Buffer.from(arrayBuf);
-              setTtsCache(cacheKey, buf, 'audio/mpeg');
-              res.setHeader('Content-Type', 'audio/mpeg');
-              res.setHeader('Cache-Control', 'no-cache');
-              return res.send(buf);
+
+            if (ttsRes.ok) {
+              const ttsData = await ttsRes.json();
+              if (ttsData && ttsData.URL) {
+                const mp3Res = await fetch(ttsData.URL, {
+                  headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                  signal: AbortSignal.timeout(4000)
+                });
+                if (mp3Res.ok) {
+                  const arrayBuf = await mp3Res.arrayBuffer();
+                  const buf = Buffer.from(arrayBuf);
+                  setTtsCache(cacheKey, buf, 'audio/mpeg');
+                  res.setHeader('Content-Type', 'audio/mpeg');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  return res.send(buf);
+                }
+              } else if (ttsData && ttsData.Error) {
+                console.warn(`[TTS] ttsmp3 error: ${ttsData.Error}`);
+              }
+            }
+          } catch (enriqueErr) {
+            console.warn(`[TTS] Enrique attempt ${attempt + 1} error:`, enriqueErr.message);
+            if (attempt === 0) {
+              await new Promise(r => setTimeout(r, 200));
+              continue;
             }
           }
         }
-      } catch (enriqueErr) {
-        console.warn('[TTS] Enrique voice error, trying fallback:', enriqueErr.message);
       }
-      voice = 'es_002'; // Fallback to Spanish male
+      voice = 'es_002'; // Fallback to Spanish voice if ttsmp3 completely unreachable
     }
 
     // 3. High-Definition Streamer Voice API (TikTok Neural Voices with fast retry)
@@ -493,7 +518,7 @@ app.get('/api/tts', async (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: speechText.slice(0, 180), voice: voice }),
-            signal: AbortSignal.timeout(5000)
+            signal: AbortSignal.timeout(3500)
           });
           if (ttRes.ok) {
             const ttData = await ttRes.json();
@@ -507,7 +532,7 @@ app.get('/api/tts', async (req, res) => {
           }
         } catch (ttErr) {
           if (attempt === 0) {
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 250));
             continue;
           }
           console.warn('[TTS] Primary voice engine failed, using fallback:', ttErr.message);

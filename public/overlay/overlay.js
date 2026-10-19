@@ -111,18 +111,20 @@
     } catch (e) {}
   }
 
-  // Text-To-Speech (Strict Single-Stream Sequential Audio Queue)
+  // Text-To-Speech (Strict Single-Stream Sequential Audio Queue with Watchdog)
   const ttsQueue = [];
   let isPlayingTts = false;
   const spokenMessageIds = new Set();
-  let currentAudio = null;
+  const sharedTtsAudio = new Audio();
+  let activeBlobUrl = null;
+  let ttsWatchdogTimer = null;
 
   function processNextTts() {
     if (isPlayingTts || ttsQueue.length === 0) return;
 
-    // Prevent audio queue flood: drop older items if backlog grows beyond 4
-    if (ttsQueue.length > 4) {
-      ttsQueue.splice(0, ttsQueue.length - 4);
+    // Prevent audio queue flood: drop older items if backlog grows beyond 15
+    if (ttsQueue.length > 15) {
+      ttsQueue.splice(0, ttsQueue.length - 15);
     }
 
     isPlayingTts = true;
@@ -130,64 +132,116 @@
     const item = ttsQueue.shift();
     if (!item || !item.url) {
       isPlayingTts = false;
+      setTimeout(processNextTts, 60);
       return;
     }
-
-    const audio = new Audio(item.url);
-    currentAudio = audio;
-    const volume = Math.max(0, Math.min(1, (currentConfig.ttsVolume ?? 90) / 100));
-    audio.volume = volume;
-    const speed = Math.max(0.5, Math.min(2.5, parseFloat(currentConfig.ttsSpeed || currentConfig.ttsRate || 1.0)));
-    audio.playbackRate = speed;
 
     let hasAdvanced = false;
     const advance = () => {
       if (hasAdvanced) return;
       hasAdvanced = true;
-      cleanupAudio(currentAudio);
-      currentAudio = null;
+      if (ttsWatchdogTimer) {
+        clearTimeout(ttsWatchdogTimer);
+        ttsWatchdogTimer = null;
+      }
+      if (activeBlobUrl) {
+        try {
+          URL.revokeObjectURL(activeBlobUrl);
+        } catch (e) {}
+        activeBlobUrl = null;
+      }
+      cleanupAudio(sharedTtsAudio);
       isPlayingTts = false;
-      setTimeout(processNextTts, 120);
+      setTimeout(processNextTts, 100);
     };
 
-    audio.onended = advance;
-    audio.onerror = advance;
-
-    audio.play().catch(() => {
+    // Strict safety watchdog: maximum 12 seconds per speech clip so it NEVER deadlocks
+    ttsWatchdogTimer = setTimeout(() => {
+      console.warn('[Overlay TTS] Watchdog timeout triggered, skipping stuck audio clip');
       advance();
-    });
+    }, 12000);
+
+    // Pre-fetch audio to local blob: prevents Chromium audio decoder stalling on slow network
+    fetch(item.url, { signal: AbortSignal.timeout(5000) })
+      .then(res => {
+        if (!res.ok) throw new Error(`TTS fetch status ${res.status}`);
+        return res.blob();
+      })
+      .then(blob => {
+        if (hasAdvanced) return;
+        activeBlobUrl = URL.createObjectURL(blob);
+        const volume = Math.max(0, Math.min(1, (currentConfig.ttsVolume ?? 90) / 100));
+        sharedTtsAudio.volume = volume;
+        const speed = Math.max(0.5, Math.min(2.5, parseFloat(currentConfig.ttsSpeed || currentConfig.ttsRate || 1.0)));
+        sharedTtsAudio.playbackRate = speed;
+        sharedTtsAudio.src = activeBlobUrl;
+
+        sharedTtsAudio.onended = advance;
+        sharedTtsAudio.onerror = advance;
+
+        sharedTtsAudio.play().catch(e => {
+          console.warn('[Overlay TTS] Audio play error:', e.message);
+          advance();
+        });
+      })
+      .catch(err => {
+        console.warn('[Overlay TTS] Network fetch error:', err.message);
+        advance();
+      });
   }
 
   function stopAndClearTts() {
     ttsQueue.length = 0;
-    cleanupAudio(currentAudio);
-    currentAudio = null;
+    if (ttsWatchdogTimer) {
+      clearTimeout(ttsWatchdogTimer);
+      ttsWatchdogTimer = null;
+    }
+    if (activeBlobUrl) {
+      try {
+        URL.revokeObjectURL(activeBlobUrl);
+      } catch (e) {}
+      activeBlobUrl = null;
+    }
+    cleanupAudio(sharedTtsAudio);
     isPlayingTts = false;
   }
 
   function skipCurrentTts() {
-    cleanupAudio(currentAudio);
-    currentAudio = null;
+    if (ttsWatchdogTimer) {
+      clearTimeout(ttsWatchdogTimer);
+      ttsWatchdogTimer = null;
+    }
+    if (activeBlobUrl) {
+      try {
+        URL.revokeObjectURL(activeBlobUrl);
+      } catch (e) {}
+      activeBlobUrl = null;
+    }
+    cleanupAudio(sharedTtsAudio);
     isPlayingTts = false;
     setTimeout(processNextTts, 60);
   }
 
   const recentSpokenTexts = new Map();
 
-  function isDuplicateFlood(text) {
+  function isDuplicateFlood(username, text) {
     const now = Date.now();
+    const normUser = (username || '').toLowerCase().trim();
     const normalized = (text || '').toLowerCase().trim();
     if (!normalized) return false;
-    if (recentSpokenTexts.has(normalized)) {
-      const lastTime = recentSpokenTexts.get(normalized);
-      if (now - lastTime < 12000) { // 12-second duplicate flood protection
+
+    // Check duplicate per user so distinct viewers typing the same word are never blocked
+    const userTextKey = `${normUser}:${normalized}`;
+    if (recentSpokenTexts.has(userTextKey)) {
+      const lastTime = recentSpokenTexts.get(userTextKey);
+      if (now - lastTime < 4000) { // 4-second duplicate spam protection per user
         return true;
       }
     }
-    recentSpokenTexts.set(normalized, now);
-    if (recentSpokenTexts.size > 50) {
+    recentSpokenTexts.set(userTextKey, now);
+    if (recentSpokenTexts.size > 100) {
       for (const [k, t] of recentSpokenTexts.entries()) {
-        if (now - t > 30000) recentSpokenTexts.delete(k);
+        if (now - t > 15000) recentSpokenTexts.delete(k);
       }
     }
     return false;
@@ -196,6 +250,9 @@
   function cleanTtsSpam(rawText) {
     if (!rawText) return '';
     let text = rawText.trim();
+
+    // Clean Kick emote markup so it reads the name naturally instead of numbers
+    text = text.replace(/\[emote:\d+:([a-zA-Z0-9_-]+)\]/g, ' $1 ');
 
     // 1. Remove URLs completely (http, https, www, discord.gg, etc.)
     text = text.replace(/(?:https?:\/\/|www\.)\S+/gi, '');
@@ -296,7 +353,7 @@
     if (currentConfig.ttsAntiSpam !== false) {
       clean = cleanTtsSpam(text);
       if (!clean) return;
-      if (isDuplicateFlood(clean)) return;
+      if (isDuplicateFlood(username, clean)) return;
     } else {
       clean = text
         .replace(/(?:https?:\/\/|www\.)\S+/gi, '')
