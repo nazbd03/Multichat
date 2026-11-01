@@ -466,6 +466,7 @@ app.get('/api/tts', async (req, res) => {
     if (voice === 'enrique' || voice === 'polly_enrique') {
       const pollyText = sanitizeForPolly(speechText).slice(0, 250);
       if (pollyText) {
+        // Attempt Provider 1: ttsmp3.com (Direct Amazon Polly Enrique)
         for (let attempt = 0; attempt < 2; attempt++) {
           try {
             const postData = `msg=${encodeURIComponent(pollyText)}&lang=Enrique&source=ttsmp3`;
@@ -473,7 +474,10 @@ app.get('/api/tts', async (req, res) => {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Origin': 'https://ttsmp3.com',
+                'Referer': 'https://ttsmp3.com/',
+                'Accept': 'application/json, text/javascript, */*; q=0.01'
               },
               body: postData,
               signal: AbortSignal.timeout(3500)
@@ -483,7 +487,10 @@ app.get('/api/tts', async (req, res) => {
               const ttsData = await ttsRes.json();
               if (ttsData && ttsData.URL) {
                 const mp3Res = await fetch(ttsData.URL, {
-                  headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Referer': 'https://ttsmp3.com/'
+                  },
                   signal: AbortSignal.timeout(4000)
                 });
                 if (mp3Res.ok) {
@@ -501,13 +508,60 @@ app.get('/api/tts', async (req, res) => {
           } catch (enriqueErr) {
             console.warn(`[TTS] Enrique attempt ${attempt + 1} error:`, enriqueErr.message);
             if (attempt === 0) {
-              await new Promise(r => setTimeout(r, 200));
+              await new Promise(r => setTimeout(r, 150));
               continue;
             }
           }
         }
+
+        // Attempt Provider 2: readloud.net (Reliable secondary Amazon Polly Enrique)
+        try {
+          const formBody = new URLSearchParams({
+            but1: pollyText,
+            butS: '0',
+            butP: '0',
+            butPauses: '0',
+            butt0: 'Submit'
+          });
+          const rlRes = await fetch('https://readloud.net/spanish/castilian/18-voz-masculina-enrique.html', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Referer': 'https://readloud.net/spanish/castilian/18-voz-masculina-enrique.html',
+              'Origin': 'https://readloud.net'
+            },
+            body: formBody.toString(),
+            signal: AbortSignal.timeout(4500)
+          });
+
+          if (rlRes.ok) {
+            const html = await rlRes.text();
+            const match = html.match(/<audio[^>]*src="([^"]*)"/i) || html.match(/<source[^>]*src="([^"]*)"/i) || html.match(/href="([^"]*\.mp3)"/i);
+            if (match && match[1]) {
+              const mp3Url = match[1].startsWith('http') ? match[1] : `https://readloud.net${match[1]}`;
+              const mp3Res = await fetch(mp3Url, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                  'Referer': 'https://readloud.net/spanish/castilian/18-voz-masculina-enrique.html'
+                },
+                signal: AbortSignal.timeout(4500)
+              });
+              if (mp3Res.ok) {
+                const arrayBuf = await mp3Res.arrayBuffer();
+                const buf = Buffer.from(arrayBuf);
+                setTtsCache(cacheKey, buf, 'audio/mpeg');
+                res.setHeader('Content-Type', 'audio/mpeg');
+                res.setHeader('Cache-Control', 'no-cache');
+                return res.send(buf);
+              }
+            }
+          }
+        } catch (rlErr) {
+          console.warn('[TTS] readloud fallback error:', rlErr.message);
+        }
       }
-      voice = 'es_002'; // Fallback to Spanish voice if ttsmp3 completely unreachable
+      voice = 'es_002'; // Fallback to Spanish voice if both Polly providers fail
     }
 
     // 3. High-Definition Streamer Voice API (TikTok Neural Voices with fast retry)

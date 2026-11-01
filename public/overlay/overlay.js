@@ -155,14 +155,14 @@
       setTimeout(processNextTts, 100);
     };
 
-    // Strict safety watchdog: maximum 12 seconds per speech clip so it NEVER deadlocks
+    // Strict safety watchdog: maximum 15 seconds per speech clip so it NEVER deadlocks
     ttsWatchdogTimer = setTimeout(() => {
       console.warn('[Overlay TTS] Watchdog timeout triggered, skipping stuck audio clip');
       advance();
-    }, 12000);
+    }, 15000);
 
     // Pre-fetch audio to local blob: prevents Chromium audio decoder stalling on slow network
-    fetch(item.url, { signal: AbortSignal.timeout(5000) })
+    fetch(item.url, { signal: AbortSignal.timeout(8000) })
       .then(res => {
         if (!res.ok) throw new Error(`TTS fetch status ${res.status}`);
         return res.blob();
